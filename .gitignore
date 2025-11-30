@@ -2,3 +2,5 @@ trail1.ipynb
 data/
 .venv
 cache/
+*.log
+experiments/
