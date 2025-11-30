@@ -4,7 +4,7 @@
 data:
   data_dir: "data"
   train_csv: "train.csv"  # CSV file with annotations (image_id, class_id)
-  image_size: 224
+  image_size: 512  # Original images are 1024x1024, using 512 for balance between quality and memory
   batch_size: 32
   num_workers: 4
   train_split: 0.8  # Fraction for training (rest goes to validation)
@@ -13,10 +13,14 @@ data:
 
 # Model configuration
 model:
-  name: "efficientnet_b3"  # Options: vit_base, efficientnet_b3, resnet50, swin_base, autoencoder, vae
+  name: "efficientnet_b3"  # Options: vit_base, efficientnet_b3, resnet50, swin_base, flare, autoencoder, vae
   num_classes: 15
   pretrained: true
   dropout: 0.3
+  embed_dim: 768  # For FLARE
+  depth: 12  # For FLARE
+  num_heads: 12  # For FLARE
+  num_latents: 64  # For FLARE (number of latent queries)
 
 # Training configuration
 training:
@@ -29,7 +33,10 @@ training:
   gradient_clip: 1.0
   early_stopping_patience: 10
   save_best: true
-  metric_name: "accuracy"  # Options: accuracy, auc_roc_macro, auc_roc, f1_macro, f1
+  metric_name: "auc_roc_macro"  # Options: accuracy, auc_roc_macro, auc_roc, f1_macro, f1
+  # Note: For multi-label, AUC-ROC is more informative than exact match accuracy
+  # Exact match accuracy requires ALL labels to be correct (very strict)
+  # AUC-ROC measures ranking quality and is threshold-independent
 
 # Anomaly detection specific (for autoencoder, VAE, etc.)
 anomaly:

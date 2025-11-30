@@ -19,6 +19,7 @@ MODELS = [
     "resnet50",
     "vit_base",
     "swin_base_patch4_window7_224",
+    "flare",
     "autoencoder",
     "vae",
 ]

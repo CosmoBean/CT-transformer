@@ -1,4 +1,4 @@
-.PHONY: install clean test test-models train-efficientnet train-resnet train-vit train-swin train-autoencoder train-vae train-all
+.PHONY: install clean test test-models train-efficientnet train-resnet train-vit train-swin train-flare train-autoencoder train-vae train-all
 
 install:
 	bash scripts/install.sh
@@ -27,6 +27,9 @@ train-vit:
 train-swin:
 	python scripts/train.py --model swin_base_patch4_window7_224 --epochs 10
 
+train-flare:
+	python scripts/train.py --model flare --epochs 10
+
 train-autoencoder:
 	python scripts/train.py --model autoencoder --epochs 20
 
@@ -45,6 +48,9 @@ test-vit:
 
 test-swin:
 	python scripts/train.py --model swin_base_patch4_window7_224 --epochs 1
+
+test-flare:
+	python scripts/train.py --model flare --epochs 1
 
 # Train all models and log results
 train-all:

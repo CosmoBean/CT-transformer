@@ -43,7 +43,7 @@ echo "Installing PyTorch with CUDA support..."
 uv pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/${CUDA_VERSION}
 
 echo "Installing core packages..."
-uv pip install timm transformers tqdm pandas scipy scikit-learn joblib pyyaml opencv-python matplotlib
+uv pip install timm transformers tqdm pandas scipy scikit-learn joblib pyyaml opencv-python matplotlib einops
 
 echo "Installation completed successfully!"
 echo "Activate the environment with: source .venv/bin/activate"

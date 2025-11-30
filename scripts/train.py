@@ -24,6 +24,7 @@ from src.models import (
     SwinTransformerClassifier,
     Autoencoder,
     VariationalAutoencoder,
+    FLAREClassifier,
 )
 from src.training import Trainer
 from src.utils import load_config
@@ -68,6 +69,17 @@ def create_model(config):
         model = VariationalAutoencoder(
             input_size=config['data']['image_size'],
             latent_dim=config['anomaly']['latent_dim'],
+        )
+    elif model_name.startswith("flare"):
+        model = FLAREClassifier(
+            num_classes=num_classes,
+            img_size=config['data']['image_size'],
+            embed_dim=config['model'].get('embed_dim', 768),
+            depth=config['model'].get('depth', 12),
+            num_heads=config['model'].get('num_heads', 12),
+            num_latents=config['model'].get('num_latents', 64),
+            dropout=config['model'].get('dropout', 0.1),
+            pretrained=pretrained,
         )
     else:
         raise ValueError(f"Unknown model: {model_name}")

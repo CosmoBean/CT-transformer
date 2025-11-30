@@ -14,12 +14,14 @@ from .anomaly_models import (
     AnoGAN,
     ContrastiveAnomalyDetector,
 )
+from .flare_model import FLAREClassifier
 
 __all__ = [
     'VisionTransformerClassifier',
     'EfficientNetClassifier',
     'ResNetClassifier',
     'SwinTransformerClassifier',
+    'FLAREClassifier',
     'Autoencoder',
     'VariationalAutoencoder',
     'AnoGAN',
