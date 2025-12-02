@@ -9,6 +9,19 @@ from torch.nn import functional as F
 from einops import rearrange
 
 
+# RMSNorm implementation (if not available in PyTorch)
+class RMSNorm(nn.Module):
+    """Root Mean Square Layer Normalization"""
+    def __init__(self, dim, eps=1e-6):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+    
+    def forward(self, x):
+        norm = x.norm(dim=-1, keepdim=True) * (x.shape[-1] ** -0.5)
+        return self.weight * x / (norm + self.eps)
+
+
 # Activation Functions
 ACTIVATIONS = {
     'gelu': nn.GELU(approximate='tanh'),
@@ -108,8 +121,17 @@ class FLARE(nn.Module):
             # Use proper attention scaling for training stability
             # PyTorch's scaled_dot_product_attention uses 1/sqrt(d) by default
             # We explicitly pass the scale to ensure correct behavior
-            z = F.scaled_dot_product_attention(q, k, v, scale=self.attn_scale)
-            y = F.scaled_dot_product_attention(k, q, z, scale=self.attn_scale)
+            # Enable flash attention if available for faster training
+            z = F.scaled_dot_product_attention(
+                q, k, v, 
+                scale=self.attn_scale,
+                is_causal=False,
+            )
+            y = F.scaled_dot_product_attention(
+                k, q, z, 
+                scale=self.attn_scale,
+                is_causal=False,
+            )
             scores = None
         else:
             # Manual computation with proper scaling
@@ -140,8 +162,8 @@ class FLAREBlock(nn.Module):
         ffn_mlp_ratio: float = 1.0,
     ):
         super().__init__()
-        self.norm1 = nn.RMSNorm(channel_dim) if rmsnorm else nn.LayerNorm(channel_dim)
-        self.norm2 = nn.RMSNorm(channel_dim) if rmsnorm else nn.LayerNorm(channel_dim)
+        self.norm1 = RMSNorm(channel_dim) if rmsnorm else nn.LayerNorm(channel_dim)
+        self.norm2 = RMSNorm(channel_dim) if rmsnorm else nn.LayerNorm(channel_dim)
         self.att = FLARE(
             channel_dim=channel_dim,
             num_heads=num_heads,

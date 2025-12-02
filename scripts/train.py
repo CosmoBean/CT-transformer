@@ -37,10 +37,15 @@ def create_model(config):
     pretrained = config['model'].get('pretrained', True)
     
     if model_name == "vit_base":
+        # ViT pretrained models only work with 224x224
+        img_size = config['data']['image_size']
+        use_pretrained = pretrained and (img_size == 224)
+        if not use_pretrained and pretrained:
+            print(f"Warning: ViT pretrained models require 224x224. Using pretrained=False for {img_size}x{img_size} images.")
         model = VisionTransformerClassifier(
             num_classes=num_classes,
-            img_size=config['data']['image_size'],
-            pretrained=pretrained,
+            img_size=img_size,
+            pretrained=use_pretrained,
         )
     elif model_name.startswith("efficientnet"):
         model = EfficientNetClassifier(
@@ -55,10 +60,14 @@ def create_model(config):
             pretrained=pretrained,
         )
     elif model_name.startswith("swin"):
+        # Swin models support custom img_size parameter natively
+        # Pretrained weights work with different sizes via img_size parameter
+        img_size = config['data']['image_size']
         model = SwinTransformerClassifier(
             num_classes=num_classes,
             model_name=model_name,
             pretrained=pretrained,
+            img_size=img_size,  # Native support for 224, 384, 512, etc.
         )
     elif model_name == "autoencoder":
         model = Autoencoder(
@@ -71,16 +80,53 @@ def create_model(config):
             latent_dim=config['anomaly']['latent_dim'],
         )
     elif model_name.startswith("flare"):
-        model = FLAREClassifier(
-            num_classes=num_classes,
-            img_size=config['data']['image_size'],
-            embed_dim=config['model'].get('embed_dim', 768),
-            depth=config['model'].get('depth', 12),
-            num_heads=config['model'].get('num_heads', 12),
-            num_latents=config['model'].get('num_latents', 64),
-            dropout=config['model'].get('dropout', 0.1),
-            pretrained=pretrained,
-        )
+        if model_name == "flare_hybrid":
+            from src.models.hybrid_models import FLAREHybridClassifier
+            model = FLAREHybridClassifier(
+                num_classes=num_classes,
+                img_size=config['data']['image_size'],
+                embed_dim=config['model'].get('embed_dim', 1024),
+                depth=config['model'].get('depth', 8),
+                num_heads=config['model'].get('num_heads', 16),
+                num_latents=config['model'].get('num_latents', 128),
+                dropout=config['model'].get('dropout', 0.1),
+                pretrained=pretrained,
+            )
+        elif model_name == "flare_multiscale":
+            from src.models.hybrid_models import MultiScaleFLARE
+            model = MultiScaleFLARE(
+                num_classes=num_classes,
+                img_size=config['data']['image_size'],
+                embed_dim=config['model'].get('embed_dim', 1024),
+                depth=config['model'].get('depth', 10),
+                num_heads=config['model'].get('num_heads', 16),
+                num_latents=config['model'].get('num_latents', 128),
+                dropout=config['model'].get('dropout', 0.1),
+            )
+        elif model_name == "flare_attn_pool":
+            from src.models.hybrid_models import FLAREWithAttentionPooling
+            model = FLAREWithAttentionPooling(
+                num_classes=num_classes,
+                img_size=config['data']['image_size'],
+                embed_dim=config['model'].get('embed_dim', 1024),
+                depth=config['model'].get('depth', 12),
+                num_heads=config['model'].get('num_heads', 16),
+                num_latents=config['model'].get('num_latents', 128),
+                dropout=config['model'].get('dropout', 0.1),
+                pretrained=pretrained,
+            )
+        else:
+            # Standard FLARE
+            model = FLAREClassifier(
+                num_classes=num_classes,
+                img_size=config['data']['image_size'],
+                embed_dim=config['model'].get('embed_dim', 1024),
+                depth=config['model'].get('depth', 12),
+                num_heads=config['model'].get('num_heads', 16),
+                num_latents=config['model'].get('num_latents', 128),
+                dropout=config['model'].get('dropout', 0.1),
+                pretrained=pretrained,
+            )
     else:
         raise ValueError(f"Unknown model: {model_name}")
     

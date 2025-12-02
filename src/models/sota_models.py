@@ -32,7 +32,11 @@ class VisionTransformerClassifier(nn.Module):
         self.num_classes = num_classes
         
         # Use timm's ViT implementation
-        if pretrained:
+        # Note: Pretrained models expect 224x224, so disable pretrained for other sizes
+        use_pretrained = pretrained and (img_size == 224)
+        
+        if use_pretrained:
+            # Use pretrained model (only works for 224x224)
             self.backbone = timm.create_model(
                 model_name,
                 pretrained=True,
@@ -41,16 +45,17 @@ class VisionTransformerClassifier(nn.Module):
             )
             # Get feature dimension
             with torch.no_grad():
-                dummy_input = torch.randn(1, in_channels, img_size, img_size)
+                dummy_input = torch.randn(1, in_channels, 224, 224)
                 features = self.backbone(dummy_input)
                 feature_dim = features.shape[1]
         else:
-            # Custom ViT
+            # For non-224 sizes, create model with custom img_size
             self.backbone = timm.create_model(
                 model_name,
                 pretrained=False,
                 num_classes=0,
                 in_chans=in_channels,
+                img_size=img_size,  # Specify custom image size
             )
             with torch.no_grad():
                 dummy_input = torch.randn(1, in_channels, img_size, img_size)
@@ -181,27 +186,25 @@ class SwinTransformerClassifier(nn.Module):
         model_name: str = "swin_base_patch4_window7_224",
         pretrained: bool = True,
         dropout: float = 0.1,
+        img_size: int = 224,  # Add img_size parameter
     ):
         super().__init__()
         self.num_classes = num_classes
+        self.img_size = img_size
         
         # Load Swin Transformer backbone
-        if pretrained:
-            self.backbone = timm.create_model(
-                model_name,
-                pretrained=True,
-                num_classes=0,  # Remove classifier
-            )
-        else:
-            self.backbone = timm.create_model(
-                model_name,
-                pretrained=False,
-                num_classes=0,
-            )
+        # Swin models support img_size parameter and can work with pretrained weights
+        # even for non-224 sizes (timm handles this automatically)
+        self.backbone = timm.create_model(
+            model_name,
+            pretrained=pretrained,
+            num_classes=0,  # Remove classifier
+            img_size=img_size,  # Support custom image sizes (224, 384, 512, etc.)
+        )
         
         # Get feature dimension
         with torch.no_grad():
-            dummy_input = torch.randn(1, 3, 224, 224)
+            dummy_input = torch.randn(1, 3, img_size, img_size)
             features = self.backbone(dummy_input)
             feature_dim = features.shape[1]
         
@@ -216,6 +219,7 @@ class SwinTransformerClassifier(nn.Module):
         )
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Swin now supports custom img_size, so no resizing needed
         features = self.backbone(x)
         logits = self.classifier(features)
         return logits

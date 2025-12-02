@@ -43,9 +43,14 @@ class Autoencoder(nn.Module):
             nn.ReLU(),
         )
         
+        # Calculate encoder output size dynamically
+        # After 4 conv layers with stride=2: input_size / 16
+        self.encoder_output_size = input_size // 16
+        encoder_output_dim = 512 * self.encoder_output_size * self.encoder_output_size
+        
         # Latent space
-        self.fc1 = nn.Linear(512 * 14 * 14, latent_dim)
-        self.fc2 = nn.Linear(latent_dim, 512 * 14 * 14)
+        self.fc1 = nn.Linear(encoder_output_dim, latent_dim)
+        self.fc2 = nn.Linear(latent_dim, encoder_output_dim)
         
         # Decoder
         self.decoder = nn.Sequential(
@@ -74,7 +79,7 @@ class Autoencoder(nn.Module):
     
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         z = self.fc2(z)
-        z = z.view(z.size(0), 512, 14, 14)
+        z = z.view(z.size(0), 512, self.encoder_output_size, self.encoder_output_size)
         x_recon = self.decoder(z)
         return x_recon
     
@@ -115,10 +120,15 @@ class VariationalAutoencoder(nn.Module):
             nn.ReLU(),
         )
         
+        # Calculate encoder output size dynamically
+        # After 4 conv layers with stride=2: input_size / 16
+        self.encoder_output_size = input_size // 16
+        encoder_output_dim = 512 * self.encoder_output_size * self.encoder_output_size
+        
         # VAE specific: mean and logvar
-        self.fc_mu = nn.Linear(512 * 14 * 14, latent_dim)
-        self.fc_logvar = nn.Linear(512 * 14 * 14, latent_dim)
-        self.fc_decode = nn.Linear(latent_dim, 512 * 14 * 14)
+        self.fc_mu = nn.Linear(encoder_output_dim, latent_dim)
+        self.fc_logvar = nn.Linear(encoder_output_dim, latent_dim)
+        self.fc_decode = nn.Linear(latent_dim, encoder_output_dim)
         
         # Decoder
         self.decoder = nn.Sequential(
@@ -149,7 +159,7 @@ class VariationalAutoencoder(nn.Module):
     
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         z = self.fc_decode(z)
-        z = z.view(z.size(0), 512, 14, 14)
+        z = z.view(z.size(0), 512, self.encoder_output_size, self.encoder_output_size)
         x_recon = self.decoder(z)
         return x_recon
     

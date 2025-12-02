@@ -17,10 +17,10 @@ model:
   num_classes: 15
   pretrained: true
   dropout: 0.3
-  embed_dim: 768  # For FLARE
+  embed_dim: 1024  # For FLARE (increased for better capacity)
   depth: 12  # For FLARE
-  num_heads: 12  # For FLARE
-  num_latents: 64  # For FLARE (number of latent queries)
+  num_heads: 16  # For FLARE (increased for better attention)
+  num_latents: 256  # For FLARE (increased latent queries for better representation)
 
 # Training configuration
 training:
@@ -33,7 +33,7 @@ training:
   gradient_clip: 1.0
   early_stopping_patience: 10
   save_best: true
-  metric_name: "auc_roc_macro"  # Options: accuracy, auc_roc_macro, auc_roc, f1_macro, f1
+  metric_name: "auc_roc"  # Options: accuracy, auc_roc_macro, auc_roc, f1_macro, f1
   # Note: For multi-label, AUC-ROC is more informative than exact match accuracy
   # Exact match accuracy requires ALL labels to be correct (very strict)
   # AUC-ROC measures ranking quality and is threshold-independent
@@ -49,4 +49,4 @@ device: "cuda"
 use_multi_gpu: true  # Use DataParallel across all available GPUs
 save_dir: "experiments/checkpoints"
 log_dir: "experiments/logs"
-seed: 42
+seed: 28

@@ -15,6 +15,11 @@ from .anomaly_models import (
     ContrastiveAnomalyDetector,
 )
 from .flare_model import FLAREClassifier
+from .hybrid_models import (
+    FLAREHybridClassifier,
+    MultiScaleFLARE,
+    FLAREWithAttentionPooling,
+)
 
 __all__ = [
     'VisionTransformerClassifier',
@@ -26,5 +31,8 @@ __all__ = [
     'VariationalAutoencoder',
     'AnoGAN',
     'ContrastiveAnomalyDetector',
+    'FLAREHybridClassifier',
+    'MultiScaleFLARE',
+    'FLAREWithAttentionPooling',
 ]
 

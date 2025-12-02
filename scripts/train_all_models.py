@@ -20,6 +20,9 @@ MODELS = [
     "vit_base",
     "swin_base_patch4_window7_224",
     "flare",
+    "flare_hybrid",
+    "flare_multiscale",
+    "flare_attn_pool",
     "autoencoder",
     "vae",
 ]

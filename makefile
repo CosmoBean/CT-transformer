@@ -1,4 +1,4 @@
-.PHONY: install clean test test-models train-efficientnet train-resnet train-vit train-swin train-flare train-autoencoder train-vae train-all
+.PHONY: install clean test test-models train-efficientnet train-resnet train-vit train-swin train-flare train-flare-hybrid train-flare-multiscale train-flare-attn-pool train-autoencoder train-vae train-all
 
 install:
 	bash scripts/install.sh
@@ -30,6 +30,15 @@ train-swin:
 train-flare:
 	python scripts/train.py --model flare --epochs 10
 
+train-flare-hybrid:
+	python scripts/train.py --model flare_hybrid --epochs 10
+
+train-flare-multiscale:
+	python scripts/train.py --model flare_multiscale --epochs 10
+
+train-flare-attn-pool:
+	python scripts/train.py --model flare_attn_pool --epochs 10
+
 train-autoencoder:
 	python scripts/train.py --model autoencoder --epochs 20
 
@@ -51,6 +60,15 @@ test-swin:
 
 test-flare:
 	python scripts/train.py --model flare --epochs 1
+
+test-flare-hybrid:
+	python scripts/train.py --model flare_hybrid --epochs 1
+
+test-flare-multiscale:
+	python scripts/train.py --model flare_multiscale --epochs 1
+
+test-flare-attn-pool:
+	python scripts/train.py --model flare_attn_pool --epochs 1
 
 # Train all models and log results
 train-all:

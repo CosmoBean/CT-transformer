@@ -129,22 +129,27 @@ class Trainer:
             
             # For autoencoders, convert reconstruction error to anomaly predictions
             if len(all_preds.shape) == 1:  # 1D tensor = reconstruction errors
-                # Use median reconstruction error as threshold
-                threshold = torch.median(all_preds).item()
-                # High error = anomaly (1), low error = normal (0)
-                # Invert: lower error should predict normal (0), higher error predicts abnormal (1)
-                # But we need to normalize and invert the scores for proper thresholding
-                # For now, use a simple approach: error > threshold = anomaly
+                # Convert multi-label classification labels to binary anomaly labels
+                # Normal = all labels are 0, Anomalous = at least one label is 1
+                if len(all_labels.shape) == 2:  # Multi-label format [N, num_classes]
+                    # Convert to binary: 0 = normal (all zeros), 1 = anomalous (any positive)
+                    anomaly_labels = (all_labels.sum(dim=1) > 0).float()  # [N]
+                else:
+                    anomaly_labels = all_labels.float()
+                
+                # Normalize reconstruction errors to [0, 1] for metric calculation
                 anomaly_scores = all_preds.cpu().numpy()
-                # Normalize to [0, 1] range for metric calculation
                 min_err = anomaly_scores.min()
                 max_err = anomaly_scores.max()
                 if max_err > min_err:
                     anomaly_scores = (anomaly_scores - min_err) / (max_err - min_err)
                 else:
                     anomaly_scores = np.zeros_like(anomaly_scores)
-                # Convert to predictions (higher score = more anomalous)
-                all_preds = torch.tensor(anomaly_scores, dtype=torch.float32)
+                
+                # Convert to 2D format for metric calculation: [N, 1]
+                # Higher score = more anomalous
+                all_preds = torch.tensor(anomaly_scores, dtype=torch.float32).unsqueeze(1)
+                all_labels = anomaly_labels.unsqueeze(1)  # [N, 1]
             
             metrics = calculate_metrics(all_labels, all_preds)
         else:
@@ -208,6 +213,14 @@ class Trainer:
             
             # For autoencoders, convert reconstruction error to anomaly predictions
             if len(all_preds.shape) == 1:  # 1D tensor = reconstruction errors
+                # Convert multi-label classification labels to binary anomaly labels
+                # Normal = all labels are 0, Anomalous = at least one label is 1
+                if len(all_labels.shape) == 2:  # Multi-label format [N, num_classes]
+                    # Convert to binary: 0 = normal (all zeros), 1 = anomalous (any positive)
+                    anomaly_labels = (all_labels.sum(dim=1) > 0).float()  # [N]
+                else:
+                    anomaly_labels = all_labels.float()
+                
                 # Normalize reconstruction errors to [0, 1] for metric calculation
                 anomaly_scores = all_preds.cpu().numpy()
                 min_err = anomaly_scores.min()
@@ -216,8 +229,11 @@ class Trainer:
                     anomaly_scores = (anomaly_scores - min_err) / (max_err - min_err)
                 else:
                     anomaly_scores = np.zeros_like(anomaly_scores)
-                # Convert to predictions (higher score = more anomalous)
-                all_preds = torch.tensor(anomaly_scores, dtype=torch.float32)
+                
+                # Convert to 2D format for metric calculation: [N, 1]
+                # Higher score = more anomalous
+                all_preds = torch.tensor(anomaly_scores, dtype=torch.float32).unsqueeze(1)
+                all_labels = anomaly_labels.unsqueeze(1)  # [N, 1]
             
             metrics = calculate_metrics(all_labels, all_preds)
         else:
