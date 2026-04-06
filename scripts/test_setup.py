@@ -55,7 +55,7 @@ def test_data_loading():
         from src.data import ChestXRayDataset
         
         data_dir = project_root / "data"
-        csv_path = data_dir / "train_meta.csv"
+        csv_path = data_dir / "train.csv"
         
         if not (data_dir / "train").exists():
             print(f"Warning: {data_dir / 'train'} does not exist")
@@ -216,4 +216,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

@@ -21,7 +21,7 @@ def test_data_loader():
     
     dataset = ChestXRayDataset(
         data_dir="data",
-        csv_path=None,
+        csv_path="data/train.csv",
         image_size=224,
         split="train",
         mode="classification",
@@ -88,6 +88,7 @@ def test_training_script_components():
     from src.utils import load_config
     
     config = load_config("configs/default_config.yaml")
+    config["model"]["pretrained"] = False
     
     test_models = ["efficientnet_b3", "resnet50", "vit_base"]
     
@@ -120,7 +121,7 @@ def test_checkpoint_saving():
     # Create minimal setup
     dataset = ChestXRayDataset(
         data_dir="data",
-        csv_path=None,
+        csv_path="data/train.csv",
         image_size=224,
         split="train",
         mode="classification",
@@ -201,4 +202,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

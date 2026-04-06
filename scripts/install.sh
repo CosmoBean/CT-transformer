@@ -1,49 +1,30 @@
-#!/bin/bash
-# Install script for chest X-ray anomaly detection project
+#!/usr/bin/env bash
+set -euo pipefail
 
-TORCH_VERSION=2.7
-CUDA_VERSION=cu128
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENV_DIR="${ROOT_DIR}/.venv"
+PYTHON_BIN="${PYTHON_BIN:-python3.11}"
 
-# Redirect all caches to project space
-CWD=$(pwd)
-CACHE_BASE="${CWD}/cache"
+if ! command -v uv >/dev/null 2>&1; then
+  echo "uv is required but was not found in PATH." >&2
+  exit 1
+fi
 
-export PIP_CACHE_DIR="${CACHE_BASE}/pip"
-export UV_CACHE_DIR="${CACHE_BASE}/uv"
-export XDG_CACHE_HOME="${CACHE_BASE}"
-export HF_HOME="${CACHE_BASE}/huggingface"
-export HUGGINGFACE_HUB_CACHE="${CACHE_BASE}/huggingface"
-export TORCH_HOME="${CACHE_BASE}/torch"
-export TRANSFORMERS_CACHE="${CACHE_BASE}/transformers"
-export DATASETS_CACHE="${CACHE_BASE}/datasets"
-export MPLCONFIGDIR="${CACHE_BASE}/matplotlib"
+if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
+  echo "Python interpreter not found: ${PYTHON_BIN}" >&2
+  exit 1
+fi
 
-# Create cache directories
-mkdir -p "$PIP_CACHE_DIR" "$UV_CACHE_DIR" "$XDG_CACHE_HOME" "$HF_HOME" \
-         "$TORCH_HOME" "$TRANSFORMERS_CACHE" "$DATASETS_CACHE" "$MPLCONFIGDIR"
+cd "${ROOT_DIR}"
 
-# Update uv
-uv self update
+if [ ! -d "${VENV_DIR}" ]; then
+  uv venv "${VENV_DIR}" --python "${PYTHON_BIN}"
+fi
 
-set -e
+uv pip install --python "${VENV_DIR}/bin/python" --upgrade pip setuptools wheel
+uv pip install --python "${VENV_DIR}/bin/python" -e .
 
-# Create virtual environment
-echo "Cleaning up previous installation..."
-rm -rf .venv uv.lock main.py pyproject.toml
-
-echo "Initializing project..."
-uv init --name flare --python=3.11 --no-readme
-uv python install
-
-echo "Creating virtual environment..."
-uv venv
-
-# Install packages
-echo "Installing PyTorch with CUDA support..."
-uv pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/${CUDA_VERSION}
-
-echo "Installing core packages..."
-uv pip install timm transformers tqdm pandas scipy scikit-learn joblib pyyaml opencv-python matplotlib einops
-
-echo "Installation completed successfully!"
-echo "Activate the environment with: source .venv/bin/activate"
+echo
+echo "Environment ready."
+echo "Activate with: source .venv/bin/activate"
+echo "Download data with: .venv/bin/python scripts/setup_data.py"

@@ -1,5 +1,5 @@
 def main():
-    print("Hello from flare!")
+    print("Hello from CT-transformer!")
 
 
 if __name__ == "__main__":
