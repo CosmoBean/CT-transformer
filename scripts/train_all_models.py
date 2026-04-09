@@ -19,10 +19,6 @@ MODELS = [
     "resnet50",
     "vit_base",
     "swin_base_patch4_window7_224",
-    "flare",
-    "flare_hybrid",
-    "flare_multiscale",
-    "flare_attn_pool",
     "autoencoder",
     "vae",
 ]
@@ -30,6 +26,7 @@ MODELS = [
 # Results file
 RESULTS_FILE = project_root / "experiments" / "model_results.json"
 LOG_FILE = project_root / "experiments" / "training_log.txt"
+TRAINING_HISTORY_FILE = project_root / "experiments" / "logs" / "training_history.json"
 
 def log_message(message, log_file=LOG_FILE):
     """Log message to file and print"""
@@ -68,6 +65,10 @@ def train_model(model_name, epochs=10):
         # Parse output for metrics
         output = result.stdout + result.stderr
         metrics = parse_training_output(output, model_name)
+        if result.returncode == 0:
+            history_metrics = load_best_metrics_from_history(model_name)
+            if history_metrics:
+                metrics.update(history_metrics)
         metrics['training_time'] = elapsed_time / 60  # minutes
         metrics['status'] = 'completed' if result.returncode == 0 else 'failed'
         metrics['return_code'] = result.returncode
@@ -166,6 +167,37 @@ def parse_training_output(output, model_name):
     
     return metrics
 
+
+def load_best_metrics_from_history(model_name):
+    """Load best-checkpoint metrics from the most recent training history file."""
+    if not TRAINING_HISTORY_FILE.exists():
+        return {}
+
+    try:
+        with open(TRAINING_HISTORY_FILE, 'r') as f:
+            history = json.load(f)
+    except Exception:
+        return {}
+
+    best_metrics = history.get('best_val_metrics') or {}
+    final_metrics = history.get('final_val_metrics') or {}
+
+    metrics = {
+        'model': model_name,
+        'timestamp': datetime.now().isoformat(),
+        'best_epoch': history.get('best_epoch'),
+        'best_metric_name': history.get('best_metric_name'),
+        'best_metric_value': history.get('best_val_score'),
+    }
+
+    for key, value in best_metrics.items():
+        metrics[f'val_{key}'] = value
+
+    for key, value in final_metrics.items():
+        metrics[f'final_{key}'] = value
+
+    return metrics
+
 def save_results(all_results):
     """Save results to JSON file"""
     RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -246,4 +278,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

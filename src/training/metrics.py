@@ -35,12 +35,14 @@ def calculate_auc_roc(
         if y_true.ndim == 1:
             if np.sum(y_true) == 0:
                 return 0.0  # No positive samples
-            return roc_auc_score(y_true, y_pred, average=average)
+            score = roc_auc_score(y_true, y_pred, average=average)
+            return float(score) if np.isfinite(score) else 0.0
         else:
             # Multi-label: check if any class has positive samples
             if np.sum(y_true) == 0:
                 return 0.0  # No positive samples in any class
-            return roc_auc_score(y_true, y_pred, average=average)
+            score = roc_auc_score(y_true, y_pred, average=average)
+            return float(score) if np.isfinite(score) else 0.0
     except (ValueError, Exception):
         # Handle case where only one class is present or other errors
         return 0.0
@@ -67,11 +69,13 @@ def calculate_auc_pr(
         if y_true.ndim == 1:
             if np.sum(y_true) == 0:
                 return 0.0
-            return average_precision_score(y_true, y_pred, average=average)
+            score = average_precision_score(y_true, y_pred, average=average)
+            return float(score) if np.isfinite(score) else 0.0
         else:
             if np.sum(y_true) == 0:
                 return 0.0
-            return average_precision_score(y_true, y_pred, average=average)
+            score = average_precision_score(y_true, y_pred, average=average)
+            return float(score) if np.isfinite(score) else 0.0
     except (ValueError, Exception):
         return 0.0
 
@@ -271,4 +275,3 @@ def calculate_reconstruction_error(
     # MSE per sample
     error = torch.mean((original - reconstructed) ** 2, dim=(1, 2, 3))
     return error
-

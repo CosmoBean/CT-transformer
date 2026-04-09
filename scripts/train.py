@@ -24,7 +24,6 @@ from src.models import (
     SwinTransformerClassifier,
     Autoencoder,
     VariationalAutoencoder,
-    FLAREClassifier,
 )
 from src.training import Trainer
 from src.utils import load_config
@@ -79,54 +78,6 @@ def create_model(config):
             input_size=config['data']['image_size'],
             latent_dim=config['anomaly']['latent_dim'],
         )
-    elif model_name.startswith("flare"):
-        if model_name == "flare_hybrid":
-            from src.models.hybrid_models import FLAREHybridClassifier
-            model = FLAREHybridClassifier(
-                num_classes=num_classes,
-                img_size=config['data']['image_size'],
-                embed_dim=config['model'].get('embed_dim', 1024),
-                depth=config['model'].get('depth', 8),
-                num_heads=config['model'].get('num_heads', 16),
-                num_latents=config['model'].get('num_latents', 128),
-                dropout=config['model'].get('dropout', 0.1),
-                pretrained=pretrained,
-            )
-        elif model_name == "flare_multiscale":
-            from src.models.hybrid_models import MultiScaleFLARE
-            model = MultiScaleFLARE(
-                num_classes=num_classes,
-                img_size=config['data']['image_size'],
-                embed_dim=config['model'].get('embed_dim', 1024),
-                depth=config['model'].get('depth', 10),
-                num_heads=config['model'].get('num_heads', 16),
-                num_latents=config['model'].get('num_latents', 128),
-                dropout=config['model'].get('dropout', 0.1),
-            )
-        elif model_name == "flare_attn_pool":
-            from src.models.hybrid_models import FLAREWithAttentionPooling
-            model = FLAREWithAttentionPooling(
-                num_classes=num_classes,
-                img_size=config['data']['image_size'],
-                embed_dim=config['model'].get('embed_dim', 1024),
-                depth=config['model'].get('depth', 12),
-                num_heads=config['model'].get('num_heads', 16),
-                num_latents=config['model'].get('num_latents', 128),
-                dropout=config['model'].get('dropout', 0.1),
-                pretrained=pretrained,
-            )
-        else:
-            # Standard FLARE
-            model = FLAREClassifier(
-                num_classes=num_classes,
-                img_size=config['data']['image_size'],
-                embed_dim=config['model'].get('embed_dim', 1024),
-                depth=config['model'].get('depth', 12),
-                num_heads=config['model'].get('num_heads', 16),
-                num_latents=config['model'].get('num_latents', 128),
-                dropout=config['model'].get('dropout', 0.1),
-                pretrained=pretrained,
-            )
     else:
         raise ValueError(f"Unknown model: {model_name}")
     
@@ -141,6 +92,10 @@ def main():
                        help='Override model name from config')
     parser.add_argument('--epochs', type=int, default=None,
                        help='Override number of epochs from config')
+    parser.add_argument('--save-dir', type=str, default=None,
+                       help='Override checkpoint output directory')
+    parser.add_argument('--log-dir', type=str, default=None,
+                       help='Override log output directory')
     args = parser.parse_args()
     
     # Load config
@@ -151,9 +106,28 @@ def main():
         config['model']['name'] = args.model
     if args.epochs:
         config['training']['num_epochs'] = args.epochs
+    if args.save_dir:
+        config['save_dir'] = args.save_dir
+    if args.log_dir:
+        config['log_dir'] = args.log_dir
     
-    # Set device
-    device = torch.device(config.get('device', 'cuda' if torch.cuda.is_available() else 'cpu'))
+    # Anomaly models require anomaly-mode data and binary anomaly selection metrics.
+    if config['model']['name'] in ['autoencoder', 'vae']:
+        config['data']['mode'] = 'anomaly'
+        if config['training'].get('metric_name') == 'auc_roc_macro':
+            config['training']['metric_name'] = 'auc_roc'
+    
+    # Set device with graceful fallback when CUDA is configured but unavailable.
+    requested_device = str(config.get('device', 'auto')).lower()
+    if requested_device == 'auto':
+        resolved_device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    elif requested_device.startswith('cuda') and not torch.cuda.is_available():
+        print("Warning: CUDA requested in config but is not available. Falling back to CPU.")
+        resolved_device = 'cpu'
+    else:
+        resolved_device = requested_device
+
+    device = torch.device(resolved_device)
     if torch.cuda.is_available():
         num_gpus = torch.cuda.device_count()
         print(f"CUDA available: {num_gpus} GPU(s)")
@@ -306,7 +280,7 @@ def main():
         scheduler = None
     
     # Check for multi-GPU usage
-    use_multi_gpu = config.get('use_multi_gpu', False)
+    use_multi_gpu = config.get('use_multi_gpu', False) and device.type == 'cuda'
     if use_multi_gpu and torch.cuda.is_available():
         num_gpus = torch.cuda.device_count()
         print(f"Multi-GPU training enabled: {num_gpus} GPUs available")
@@ -314,6 +288,8 @@ def main():
             # Increase batch size proportionally for multi-GPU
             effective_batch_size = config['data']['batch_size'] * num_gpus
             print(f"Effective batch size: {effective_batch_size} (batch_size={config['data']['batch_size']} × {num_gpus} GPUs)")
+    elif config.get('use_multi_gpu', False) and device.type != 'cuda':
+        print("Multi-GPU disabled because CUDA is not available.")
     
     # Create trainer
     trainer = Trainer(
@@ -341,4 +317,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

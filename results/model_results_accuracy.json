@@ -62,21 +62,6 @@
       "return_code": 0
     },
     {
-      "model": "flare",
-      "timestamp": "2025-11-30T17:46:49.474183",
-      "val_accuracy": 0.6973,
-      "val_hamming_accuracy": 0.9189,
-      "val_auc_roc_macro": 0.757,
-      "val_f1_macro": 0.0987,
-      "best_metric_name": "accuracy",
-      "best_metric_value": 0.7113,
-      "final_metric_name": "accuracy",
-      "final_metric_value": 0.7113,
-      "training_time": 18.4526753821373,
-      "status": "completed",
-      "return_code": 0
-    },
-    {
       "model": "autoencoder",
       "timestamp": "2025-11-30T18:07:15.066774",
       "val_accuracy": 0.0,

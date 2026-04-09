@@ -68,8 +68,40 @@ class Trainer:
             'val_metrics': [],
         }
         
-        self.best_val_score = 0.0
+        self.best_val_score = float("-inf")
+        self.best_epoch = -1
+        self.best_metric_name = None
+        self.best_val_metrics = {}
+        self.final_val_metrics = {}
         self.current_epoch = 0
+
+    @staticmethod
+    def _jsonable(value):
+        """Convert tensors/arrays/scalars to JSON-friendly Python types."""
+        if isinstance(value, torch.Tensor):
+            if value.ndim == 0:
+                return float(value.item())
+            return value.detach().cpu().tolist()
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+        if isinstance(value, np.generic):
+            return value.item()
+        if isinstance(value, dict):
+            return {k: Trainer._jsonable(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [Trainer._jsonable(v) for v in value]
+        return value
+
+    @staticmethod
+    def _prepare_anomaly_labels(labels: torch.Tensor) -> torch.Tensor:
+        """
+        Convert multi-label chest X-ray labels to binary anomaly labels.
+        Class 14 is "No finding", so anomalies are any positive finding except that class.
+        """
+        if labels.ndim == 2 and labels.shape[1] > 1:
+            abnormal_labels = labels[:, :-1]
+            return (abnormal_labels.sum(dim=1) > 0).float()
+        return labels.float()
     
     def train_epoch(self) -> Dict:
         """Train for one epoch"""
@@ -129,13 +161,7 @@ class Trainer:
             
             # For autoencoders, convert reconstruction error to anomaly predictions
             if len(all_preds.shape) == 1:  # 1D tensor = reconstruction errors
-                # Convert multi-label classification labels to binary anomaly labels
-                # Normal = all labels are 0, Anomalous = at least one label is 1
-                if len(all_labels.shape) == 2:  # Multi-label format [N, num_classes]
-                    # Convert to binary: 0 = normal (all zeros), 1 = anomalous (any positive)
-                    anomaly_labels = (all_labels.sum(dim=1) > 0).float()  # [N]
-                else:
-                    anomaly_labels = all_labels.float()
+                anomaly_labels = self._prepare_anomaly_labels(all_labels)
                 
                 # Normalize reconstruction errors to [0, 1] for metric calculation
                 anomaly_scores = all_preds.cpu().numpy()
@@ -213,13 +239,7 @@ class Trainer:
             
             # For autoencoders, convert reconstruction error to anomaly predictions
             if len(all_preds.shape) == 1:  # 1D tensor = reconstruction errors
-                # Convert multi-label classification labels to binary anomaly labels
-                # Normal = all labels are 0, Anomalous = at least one label is 1
-                if len(all_labels.shape) == 2:  # Multi-label format [N, num_classes]
-                    # Convert to binary: 0 = normal (all zeros), 1 = anomalous (any positive)
-                    anomaly_labels = (all_labels.sum(dim=1) > 0).float()  # [N]
-                else:
-                    anomaly_labels = all_labels.float()
+                anomaly_labels = self._prepare_anomaly_labels(all_labels)
                 
                 # Normalize reconstruction errors to [0, 1] for metric calculation
                 anomaly_scores = all_preds.cpu().numpy()
@@ -298,6 +318,7 @@ class Trainer:
             
             # Print key metrics
             val_metrics = val_results['metrics']
+            self.final_val_metrics = dict(val_metrics)
             # Always show accuracy
             if 'accuracy' in val_metrics:
                 print(f"Val Accuracy: {val_metrics['accuracy']:.4f}")
@@ -330,6 +351,9 @@ class Trainer:
                 
                 if score > self.best_val_score:
                     self.best_val_score = score
+                    self.best_epoch = epoch + 1
+                    self.best_metric_name = metric_name if metric_name in val_metrics else "loss"
+                    self.best_val_metrics = dict(val_metrics)
                     self.save_checkpoint(f"best_model.pth")
                     metric_display = metric_name if metric_name in val_metrics else "loss"
                     print(f"New best model saved! ({metric_display}: {score:.4f})")
@@ -392,13 +416,17 @@ class Trainer:
             if key in ['train_metrics', 'val_metrics']:
                 # Convert metrics dicts to JSON-serializable format
                 history_json[key] = [
-                    {k: float(v) if isinstance(v, (torch.Tensor, np.ndarray)) else v
-                     for k, v in m.items()}
+                    {k: self._jsonable(v) for k, v in m.items()}
                     for m in values
                 ]
             else:
                 history_json[key] = [float(v) for v in values]
         
+        history_json['best_epoch'] = self.best_epoch
+        history_json['best_metric_name'] = self.best_metric_name
+        history_json['best_val_score'] = float(self.best_val_score)
+        history_json['best_val_metrics'] = self._jsonable(self.best_val_metrics)
+        history_json['final_val_metrics'] = self._jsonable(self.final_val_metrics)
+        
         with open(self.log_dir / "training_history.json", 'w') as f:
             json.dump(history_json, f, indent=2)
-

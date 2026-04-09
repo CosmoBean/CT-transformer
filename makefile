@@ -1,11 +1,14 @@
-.PHONY: install clean test test-models train-efficientnet train-resnet train-vit train-swin train-flare train-flare-hybrid train-flare-multiscale train-flare-attn-pool train-autoencoder train-vae train-all
+.PHONY: install clean test test-models test-agent train-efficientnet train-resnet train-vit train-swin train-autoencoder train-vae train-all eval-agent demo-agent run-agent-pipeline
 
 install:
 	bash scripts/install.sh
 
+data:
+	.venv/bin/python scripts/setup_data.py
+
 clean:
-	rm -rf .venv uv.lock main.py pyproject.toml
-	rm -rf cache
+	rm -rf .venv uv.lock cache
+	rm -rf experiments/test_checkpoints experiments/test_logs
 
 # Testing commands
 test:
@@ -13,6 +16,9 @@ test:
 
 test-models:
 	python scripts/validate_setup.py
+
+test-agent:
+	python scripts/test_agent_workflow.py
 
 # Training commands for different models
 train-efficientnet:
@@ -26,18 +32,6 @@ train-vit:
 
 train-swin:
 	python scripts/train.py --model swin_base_patch4_window7_224 --epochs 10
-
-train-flare:
-	python scripts/train.py --model flare --epochs 10
-
-train-flare-hybrid:
-	python scripts/train.py --model flare_hybrid --epochs 10
-
-train-flare-multiscale:
-	python scripts/train.py --model flare_multiscale --epochs 10
-
-train-flare-attn-pool:
-	python scripts/train.py --model flare_attn_pool --epochs 10
 
 train-autoencoder:
 	python scripts/train.py --model autoencoder --epochs 20
@@ -58,18 +52,6 @@ test-vit:
 test-swin:
 	python scripts/train.py --model swin_base_patch4_window7_224 --epochs 1
 
-test-flare:
-	python scripts/train.py --model flare --epochs 1
-
-test-flare-hybrid:
-	python scripts/train.py --model flare_hybrid --epochs 1
-
-test-flare-multiscale:
-	python scripts/train.py --model flare_multiscale --epochs 1
-
-test-flare-attn-pool:
-	python scripts/train.py --model flare_attn_pool --epochs 1
-
 # Train all models and log results
 train-all:
 	python scripts/train_all_models.py
@@ -84,3 +66,12 @@ train-all-bg:
 # View training results
 view-results:
 	python scripts/view_results.py
+
+eval-agent:
+	python scripts/evaluate_agent.py --checkpoint-path experiments/agent_swin/checkpoints/best_model.pth --output-dir reports/agent
+
+demo-agent:
+	python scripts/demo_case.py --checkpoint-path experiments/agent_swin/checkpoints/best_model.pth
+
+run-agent-pipeline:
+	bash scripts/run_agent_pipeline.sh
