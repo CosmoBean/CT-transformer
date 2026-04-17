@@ -11,8 +11,6 @@ from .sota_models import (
 from .anomaly_models import (
     Autoencoder,
     VariationalAutoencoder,
-    AnoGAN,
-    ContrastiveAnomalyDetector,
 )
 
 __all__ = [
@@ -22,6 +20,4 @@ __all__ = [
     'SwinTransformerClassifier',
     'Autoencoder',
     'VariationalAutoencoder',
-    'AnoGAN',
-    'ContrastiveAnomalyDetector',
 ]
