@@ -1,11 +1,9 @@
 """
-Creative anomaly detection models
+Simple anomaly detection models.
 """
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from typing import Tuple, Optional
-import timm
+from typing import Tuple
 
 
 class Autoencoder(nn.Module):
@@ -168,110 +166,3 @@ class VariationalAutoencoder(nn.Module):
         z = self.reparameterize(mu, logvar)
         x_recon = self.decode(z)
         return x_recon, mu, logvar
-
-
-class AnoGAN(nn.Module):
-    """
-    AnoGAN: Unsupervised Anomaly Detection via Adversarial Training
-    Based on: Schlegl et al., "Unsupervised Anomaly Detection with GANs"
-    """
-    
-    def __init__(
-        self,
-        latent_dim: int = 100,
-        img_size: int = 224,
-        channels: int = 3,
-    ):
-        super().__init__()
-        self.latent_dim = latent_dim
-        
-        # Generator
-        self.generator = nn.Sequential(
-            nn.Linear(latent_dim, 512 * 7 * 7),
-            nn.ReLU(),
-            nn.Unflatten(1, (512, 7, 7)),
-            nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.ConvTranspose2d(64, channels, kernel_size=4, stride=2, padding=1),
-            nn.Tanh(),
-        )
-        
-        # Discriminator
-        self.discriminator = nn.Sequential(
-            nn.Conv2d(channels, 64, kernel_size=4, stride=2, padding=1),
-            nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
-            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
-            nn.AdaptiveAvgPool2d(1),
-            nn.Flatten(),
-            nn.Linear(512, 1),
-            nn.Sigmoid(),
-        )
-    
-    def generate(self, z: torch.Tensor) -> torch.Tensor:
-        return self.generator(z)
-    
-    def discriminate(self, x: torch.Tensor) -> torch.Tensor:
-        return self.discriminator(x)
-
-
-class ContrastiveAnomalyDetector(nn.Module):
-    """
-    Contrastive Learning for Anomaly Detection
-    Uses SimCLR-style contrastive learning to learn representations
-    """
-    
-    def __init__(
-        self,
-        backbone_name: str = "resnet50",
-        projection_dim: int = 128,
-        pretrained: bool = True,
-    ):
-        super().__init__()
-        
-        # Backbone encoder
-        if pretrained:
-            self.encoder = timm.create_model(
-                backbone_name,
-                pretrained=True,
-                num_classes=0,
-            )
-        else:
-            self.encoder = timm.create_model(
-                backbone_name,
-                pretrained=False,
-                num_classes=0,
-            )
-        
-        # Get feature dimension
-        with torch.no_grad():
-            dummy_input = torch.randn(1, 3, 224, 224)
-            features = self.encoder(dummy_input)
-            feature_dim = features.shape[1]
-        
-        # Projection head
-        self.projection = nn.Sequential(
-            nn.Linear(feature_dim, 512),
-            nn.ReLU(),
-            nn.Linear(512, projection_dim),
-        )
-    
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        features = self.encoder(x)
-        projections = self.projection(features)
-        return F.normalize(projections, dim=1)
-
