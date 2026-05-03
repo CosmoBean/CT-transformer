@@ -19,7 +19,7 @@ def test_imports():
     print("=" * 60)
     
     try:
-        from src.data import ChestXRayDataset, AnomalyDetectionDataset
+        from src.data import ChestXRayDataset
         print("Data modules imported")
         
         from src.models import (
@@ -27,8 +27,7 @@ def test_imports():
             EfficientNetClassifier,
             ResNetClassifier,
             SwinTransformerClassifier,
-            Autoencoder,
-            VariationalAutoencoder,
+            SimpleCNNClassifier,
         )
         print("Model modules imported")
         

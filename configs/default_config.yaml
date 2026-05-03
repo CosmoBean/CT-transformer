@@ -1,48 +1,35 @@
-# Default configuration for chest X-ray anomaly detection
+# Default classification config for the VinBigData 15-label subset.
 
-# Data configuration
 data:
   data_dir: "data"
-  train_csv: "train.csv"  # CSV file with annotations (image_id, class_id)
-  image_size: 512  # Original images are 1024x1024, using 512 for balance between quality and memory
+  train_csv: "train.csv"
+  image_size: 512
+  use_augmentation: false
   batch_size: 32
   num_workers: 4
-  train_split: 0.8  # Fraction for training (rest goes to validation)
-  val_split: 0.2    # Fraction for validation
-  mode: "classification"  # "classification" or "anomaly"
+  train_split: 0.8
+  val_split: 0.2
 
-# Model configuration
 model:
-  name: "efficientnet_b3"  # Options: vit_base, efficientnet_b3, resnet50, swin_base_patch4_window7_224, autoencoder, vae
+  name: "simple_cnn"  # simple_cnn, efficientnet_b3, resnet50, vit_base, swin_base_patch4_window7_224
   num_classes: 15
   pretrained: true
   dropout: 0.3
 
-# Training configuration
 training:
   num_epochs: 50
   learning_rate: 1e-4
   weight_decay: 1e-4
-  optimizer: "adamw"  # Options: adam, adamw, sgd
-  scheduler: "cosine"  # Options: cosine, step, plateau
-  criterion: "bce"  # Options: bce, focal, weighted_bce
+  optimizer: "adamw"
+  scheduler: "cosine"
+  criterion: "bce"
   gradient_clip: 1.0
   early_stopping_patience: 10
   save_best: true
-  metric_name: "auc_roc_macro"  # Options: accuracy, auc_roc_macro, auc_roc, f1_macro, f1
-  # Note: For multi-label, AUC-ROC is more informative than exact match accuracy
-  # Exact match accuracy requires ALL labels to be correct (very strict)
-  # AUC-ROC measures ranking quality and is threshold-independent
+  metric_name: "auc_roc_macro"
 
-# Anomaly detection specific (for autoencoder, VAE, etc.)
-anomaly:
-  latent_dim: 128
-  normal_only: true  # Train only on normal samples
-  reconstruction_threshold: 0.1
-
-# Device and paths
 device: "cuda"
-use_multi_gpu: true  # Use DataParallel across all available GPUs
+use_multi_gpu: true
 save_dir: "experiments/checkpoints"
 log_dir: "experiments/logs"
 seed: 28

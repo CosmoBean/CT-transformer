@@ -92,19 +92,8 @@ class Trainer:
             return [Trainer._jsonable(v) for v in value]
         return value
 
-    @staticmethod
-    def _prepare_anomaly_labels(labels: torch.Tensor) -> torch.Tensor:
-        """
-        Convert multi-label chest X-ray labels to binary anomaly labels.
-        Class 14 is "No finding", so anomalies are any positive finding except that class.
-        """
-        if labels.ndim == 2 and labels.shape[1] > 1:
-            abnormal_labels = labels[:, :-1]
-            return (abnormal_labels.sum(dim=1) > 0).float()
-        return labels.float()
-    
     def train_epoch(self) -> Dict:
-        """Train for one epoch"""
+        """Train for one epoch."""
         self.model.train()
         total_loss = 0.0
         all_preds = []
@@ -116,67 +105,20 @@ class Trainer:
             images = batch['image'].to(self.device)
             labels = batch['labels'].to(self.device)
             
-            # Forward pass
             self.optimizer.zero_grad()
             outputs = self.model(images)
-            
-            # Calculate loss
-            if isinstance(outputs, tuple):
-                # For models that return multiple outputs (e.g., Autoencoder, VAE)
-                loss = self._calculate_loss(outputs, images, labels)
-            else:
-                loss = self.criterion(outputs, labels)
-            
-            # Backward pass
+            loss = self.criterion(outputs, labels)
             loss.backward()
             self.optimizer.step()
             
-            # Accumulate
             total_loss += loss.item()
-            
-            # For autoencoders, calculate reconstruction error as anomaly score
-            if isinstance(outputs, tuple) and len(outputs[0].shape) == 4:
-                # Autoencoder: outputs[0] is reconstruction (image)
-                recon = outputs[0]
-                # Calculate per-sample reconstruction error (MSE)
-                recon_error = torch.mean((recon - images) ** 2, dim=(1, 2, 3))  # [batch_size]
-                all_preds.append(recon_error.detach())
-                all_labels.append(labels.detach())
-            else:
-                # Classification model: use outputs directly
-                if isinstance(outputs, tuple):
-                    preds = outputs[0]  # Use first output
-                else:
-                    preds = outputs
-                all_preds.append(preds.detach())
-                all_labels.append(labels.detach())
-            
-            # Update progress bar
+            all_preds.append(outputs.detach())
+            all_labels.append(labels.detach())
             pbar.set_postfix({'loss': loss.item()})
         
-        # Calculate metrics
         if len(all_preds) > 0:
             all_preds = torch.cat(all_preds, dim=0)
             all_labels = torch.cat(all_labels, dim=0)
-            
-            # For autoencoders, convert reconstruction error to anomaly predictions
-            if len(all_preds.shape) == 1:  # 1D tensor = reconstruction errors
-                anomaly_labels = self._prepare_anomaly_labels(all_labels)
-                
-                # Normalize reconstruction errors to [0, 1] for metric calculation
-                anomaly_scores = all_preds.cpu().numpy()
-                min_err = anomaly_scores.min()
-                max_err = anomaly_scores.max()
-                if max_err > min_err:
-                    anomaly_scores = (anomaly_scores - min_err) / (max_err - min_err)
-                else:
-                    anomaly_scores = np.zeros_like(anomaly_scores)
-                
-                # Convert to 2D format for metric calculation: [N, 1]
-                # Higher score = more anomalous
-                all_preds = torch.tensor(anomaly_scores, dtype=torch.float32).unsqueeze(1)
-                all_labels = anomaly_labels.unsqueeze(1)  # [N, 1]
-            
             metrics = calculate_metrics(all_labels, all_preds)
         else:
             metrics = {}
@@ -189,7 +131,7 @@ class Trainer:
         }
     
     def validate(self) -> Dict:
-        """Validate on validation set"""
+        """Validate on the held-out split."""
         self.model.eval()
         total_loss = 0.0
         all_preds = []
@@ -202,59 +144,16 @@ class Trainer:
                 images = batch['image'].to(self.device)
                 labels = batch['labels'].to(self.device)
                 
-                # Forward pass
                 outputs = self.model(images)
-                
-                # Calculate loss
-                if isinstance(outputs, tuple):
-                    loss = self._calculate_loss(outputs, images, labels)
-                else:
-                    loss = self.criterion(outputs, labels)
-                
+                loss = self.criterion(outputs, labels)
                 total_loss += loss.item()
-                
-                # For autoencoders, calculate reconstruction error as anomaly score
-                if isinstance(outputs, tuple) and len(outputs[0].shape) == 4:
-                    # Autoencoder: outputs[0] is reconstruction (image)
-                    recon = outputs[0]
-                    # Calculate per-sample reconstruction error (MSE)
-                    recon_error = torch.mean((recon - images) ** 2, dim=(1, 2, 3))  # [batch_size]
-                    all_preds.append(recon_error.detach())
-                    all_labels.append(labels.detach())
-                else:
-                    # Classification model: use outputs directly
-                    if isinstance(outputs, tuple):
-                        preds = outputs[0]  # Use first output
-                    else:
-                        preds = outputs
-                    all_preds.append(preds.detach())
-                    all_labels.append(labels.detach())
-                
+                all_preds.append(outputs.detach())
+                all_labels.append(labels.detach())
                 pbar.set_postfix({'loss': loss.item()})
         
-        # Calculate metrics
         if len(all_preds) > 0:
             all_preds = torch.cat(all_preds, dim=0)
             all_labels = torch.cat(all_labels, dim=0)
-            
-            # For autoencoders, convert reconstruction error to anomaly predictions
-            if len(all_preds.shape) == 1:  # 1D tensor = reconstruction errors
-                anomaly_labels = self._prepare_anomaly_labels(all_labels)
-                
-                # Normalize reconstruction errors to [0, 1] for metric calculation
-                anomaly_scores = all_preds.cpu().numpy()
-                min_err = anomaly_scores.min()
-                max_err = anomaly_scores.max()
-                if max_err > min_err:
-                    anomaly_scores = (anomaly_scores - min_err) / (max_err - min_err)
-                else:
-                    anomaly_scores = np.zeros_like(anomaly_scores)
-                
-                # Convert to 2D format for metric calculation: [N, 1]
-                # Higher score = more anomalous
-                all_preds = torch.tensor(anomaly_scores, dtype=torch.float32).unsqueeze(1)
-                all_labels = anomaly_labels.unsqueeze(1)  # [N, 1]
-            
             metrics = calculate_metrics(all_labels, all_preds)
         else:
             metrics = {}
@@ -265,25 +164,6 @@ class Trainer:
             'loss': avg_loss,
             'metrics': metrics,
         }
-    
-    def _calculate_loss(self, outputs: tuple, images: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        """Calculate loss for models with multiple outputs"""
-        # For VAE: (recon, mu, logvar)
-        if len(outputs) == 3:
-            recon, mu, logvar = outputs
-            # Reconstruction loss: compare reconstruction with input images
-            recon_loss = nn.functional.mse_loss(recon, images, reduction='sum')
-            # KL divergence
-            kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-            return (recon_loss + kl_loss) / images.size(0)
-        # For Autoencoder: (recon, z)
-        elif len(outputs) == 2:
-            recon, z = outputs
-            # Reconstruction loss: compare reconstruction with input images
-            return nn.functional.mse_loss(recon, images, reduction='mean')
-        else:
-            # Fallback to standard loss
-            return self.criterion(outputs[0], labels)
     
     def train(self, num_epochs: int, save_best: bool = True, metric_name: str = "auc_roc_macro"):
         """Train the model"""

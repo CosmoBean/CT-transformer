@@ -1,5 +1,5 @@
 """
-Model architectures for chest X-ray anomaly detection
+Model architectures for chest X-ray classification.
 """
 
 from .sota_models import (
@@ -7,10 +7,7 @@ from .sota_models import (
     EfficientNetClassifier,
     ResNetClassifier,
     SwinTransformerClassifier,
-)
-from .anomaly_models import (
-    Autoencoder,
-    VariationalAutoencoder,
+    SimpleCNNClassifier,
 )
 
 __all__ = [
@@ -18,6 +15,5 @@ __all__ = [
     'EfficientNetClassifier',
     'ResNetClassifier',
     'SwinTransformerClassifier',
-    'Autoencoder',
-    'VariationalAutoencoder',
+    'SimpleCNNClassifier',
 ]

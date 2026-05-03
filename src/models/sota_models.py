@@ -202,11 +202,14 @@ class SwinTransformerClassifier(nn.Module):
             img_size=img_size,  # Support custom image sizes (224, 384, 512, etc.)
         )
         
-        # Get feature dimension
-        with torch.no_grad():
-            dummy_input = torch.randn(1, 3, img_size, img_size)
-            features = self.backbone(dummy_input)
-            feature_dim = features.shape[1]
+        # timm exposes the backbone feature width directly; avoid an expensive
+        # dummy forward at 512x512 just to infer the classifier input size.
+        feature_dim = getattr(self.backbone, "num_features", None)
+        if feature_dim is None:
+            with torch.no_grad():
+                dummy_input = torch.randn(1, 3, img_size, img_size)
+                features = self.backbone(dummy_input)
+                feature_dim = features.shape[1]
         
         # Classification head
         self.classifier = nn.Sequential(
@@ -224,3 +227,59 @@ class SwinTransformerClassifier(nn.Module):
         logits = self.classifier(features)
         return logits
 
+
+class SimpleCNNClassifier(nn.Module):
+    """
+    Simple non-pretrained CNN baseline for multi-label classification.
+
+    This is intentionally plain: stacked conv blocks with max pooling and a
+    small MLP head. It serves as a from-scratch convolutional baseline rather
+    than a strong pretrained backbone.
+    """
+
+    def __init__(
+        self,
+        num_classes: int = 15,
+        in_channels: int = 3,
+        base_channels: int = 32,
+        dropout: float = 0.3,
+    ):
+        super().__init__()
+        self.num_classes = num_classes
+
+        channels = [
+            base_channels,
+            base_channels * 2,
+            base_channels * 4,
+            base_channels * 8,
+        ]
+        layers: list[nn.Module] = []
+        current_in = in_channels
+        for current_out in channels:
+            layers.extend(
+                [
+                    nn.Conv2d(current_in, current_out, kernel_size=3, padding=1, bias=False),
+                    nn.BatchNorm2d(current_out),
+                    nn.ReLU(inplace=True),
+                    nn.Conv2d(current_out, current_out, kernel_size=3, padding=1, bias=False),
+                    nn.BatchNorm2d(current_out),
+                    nn.ReLU(inplace=True),
+                    nn.MaxPool2d(kernel_size=2, stride=2),
+                ]
+            )
+            current_in = current_out
+
+        self.features = nn.Sequential(*layers)
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(channels[-1], 512),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
+            nn.Linear(512, num_classes),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = self.pool(x)
+        return self.classifier(x)

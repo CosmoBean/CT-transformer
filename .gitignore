@@ -1,12 +1,14 @@
 trail1.ipynb
-data/
-.venv
-cache/
+/data/
+/.venv
+/cache/
 *.log
-experiments/
+/experiments/
 *.egg-info/
 
 __pycache__/
 *.pyc
-.hf_home/
-exports/
+/.hf_home/
+/exports/
+/runs/
+/yolo*.pt

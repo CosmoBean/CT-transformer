@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-Main training script for chest X-ray anomaly detection
+Train one chest X-ray multi-label classifier on the VinBigData subset.
 """
+from __future__ import annotations
+
+import argparse
 import sys
 from pathlib import Path
 
-# Add project root to path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -13,285 +15,199 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import argparse
-import yaml
 
-from src.data import ChestXRayDataset, AnomalyDetectionDataset
+from src.data import ChestXRayDataset
 from src.models import (
-    VisionTransformerClassifier,
     EfficientNetClassifier,
     ResNetClassifier,
+    SimpleCNNClassifier,
     SwinTransformerClassifier,
-    Autoencoder,
-    VariationalAutoencoder,
+    VisionTransformerClassifier,
 )
 from src.training import Trainer
 from src.utils import load_config
 
 
-def create_model(config):
-    """Create model based on config"""
-    model_name = config['model']['name']
-    num_classes = config['model']['num_classes']
-    pretrained = config['model'].get('pretrained', True)
-    
-    if model_name == "vit_base":
-        # ViT pretrained models only work with 224x224
-        img_size = config['data']['image_size']
-        use_pretrained = pretrained and (img_size == 224)
-        if not use_pretrained and pretrained:
-            print(f"Warning: ViT pretrained models require 224x224. Using pretrained=False for {img_size}x{img_size} images.")
-        model = VisionTransformerClassifier(
+SUPPORTED_MODELS = {
+    "simple_cnn",
+    "efficientnet_b3",
+    "resnet50",
+    "vit_base",
+    "swin_base_patch4_window7_224",
+}
+
+
+def create_model(config: dict) -> nn.Module:
+    model_name = config["model"]["name"]
+    num_classes = int(config["model"]["num_classes"])
+    pretrained = bool(config["model"].get("pretrained", True))
+    image_size = int(config["data"]["image_size"])
+    dropout = float(config["model"].get("dropout", 0.3))
+
+    if model_name == "simple_cnn":
+        return SimpleCNNClassifier(num_classes=num_classes, dropout=dropout)
+
+    if model_name == "efficientnet_b3":
+        return EfficientNetClassifier(
             num_classes=num_classes,
-            img_size=img_size,
+            model_name=model_name,
+            pretrained=pretrained,
+            dropout=dropout,
+        )
+
+    if model_name == "resnet50":
+        return ResNetClassifier(
+            num_classes=num_classes,
+            model_name=model_name,
+            pretrained=pretrained,
+            dropout=dropout,
+        )
+
+    if model_name == "vit_base":
+        use_pretrained = pretrained and image_size == 224
+        if pretrained and not use_pretrained:
+            print(
+                f"Warning: ViT pretrained weights require 224x224 input. "
+                f"Using pretrained=False for {image_size}x{image_size}."
+            )
+        return VisionTransformerClassifier(
+            num_classes=num_classes,
+            img_size=image_size,
             pretrained=use_pretrained,
         )
-    elif model_name.startswith("efficientnet"):
-        model = EfficientNetClassifier(
+
+    if model_name.startswith("swin"):
+        return SwinTransformerClassifier(
             num_classes=num_classes,
             model_name=model_name,
             pretrained=pretrained,
+            img_size=image_size,
+            dropout=dropout,
         )
-    elif model_name.startswith("resnet"):
-        model = ResNetClassifier(
-            num_classes=num_classes,
-            model_name=model_name,
-            pretrained=pretrained,
-        )
-    elif model_name.startswith("swin"):
-        # Swin models support custom img_size parameter natively
-        # Pretrained weights work with different sizes via img_size parameter
-        img_size = config['data']['image_size']
-        model = SwinTransformerClassifier(
-            num_classes=num_classes,
-            model_name=model_name,
-            pretrained=pretrained,
-            img_size=img_size,  # Native support for 224, 384, 512, etc.
-        )
-    elif model_name == "autoencoder":
-        model = Autoencoder(
-            input_size=config['data']['image_size'],
-            latent_dim=config['anomaly']['latent_dim'],
-        )
-    elif model_name == "vae":
-        model = VariationalAutoencoder(
-            input_size=config['data']['image_size'],
-            latent_dim=config['anomaly']['latent_dim'],
-        )
-    else:
-        raise ValueError(f"Unknown model: {model_name}")
-    
-    return model
+
+    raise ValueError(
+        f"Unsupported model '{model_name}'. "
+        f"Expected one of: {', '.join(sorted(SUPPORTED_MODELS))}"
+    )
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Train chest X-ray anomaly detection model')
-    parser.add_argument('--config', type=str, default='configs/default_config.yaml',
-                       help='Path to config file')
-    parser.add_argument('--model', type=str, default=None,
-                       help='Override model name from config')
-    parser.add_argument('--epochs', type=int, default=None,
-                       help='Override number of epochs from config')
-    parser.add_argument('--save-dir', type=str, default=None,
-                       help='Override checkpoint output directory')
-    parser.add_argument('--log-dir', type=str, default=None,
-                       help='Override log output directory')
+def resolve_device(config: dict) -> torch.device:
+    requested = str(config.get("device", "auto")).lower()
+    if requested == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if requested.startswith("cuda") and not torch.cuda.is_available():
+        print("Warning: CUDA requested but unavailable. Falling back to CPU.")
+        return torch.device("cpu")
+    return torch.device(requested)
+
+
+def build_dataloaders(config: dict, device: torch.device) -> tuple[DataLoader, DataLoader]:
+    data_dir = Path(config["data"]["data_dir"])
+    train_csv_name = config["data"].get("train_csv", "train.csv")
+    csv_path = data_dir / train_csv_name
+    csv_path_str = str(csv_path) if csv_path.exists() else None
+
+    dataset_kwargs = {
+        "data_dir": str(data_dir),
+        "csv_path": csv_path_str,
+        "image_size": int(config["data"]["image_size"]),
+        "train_split": float(config["data"].get("train_split", 0.8)),
+        "val_split": float(config["data"].get("val_split", 0.2)),
+        "seed": int(config.get("seed", 42)),
+    }
+
+    train_dataset = ChestXRayDataset(
+        split="train",
+        use_augmentation=bool(config["data"].get("use_augmentation", False)),
+        **dataset_kwargs,
+    )
+    val_dataset = ChestXRayDataset(
+        split="val",
+        use_augmentation=False,
+        **dataset_kwargs,
+    )
+
+    loader_kwargs = {
+        "batch_size": int(config["data"]["batch_size"]),
+        "num_workers": int(config["data"]["num_workers"]),
+        "pin_memory": device.type == "cuda",
+    }
+
+    train_loader = DataLoader(train_dataset, shuffle=True, **loader_kwargs)
+    val_loader = DataLoader(val_dataset, shuffle=False, **loader_kwargs)
+    return train_loader, val_loader
+
+
+def create_optimizer(config: dict, model: nn.Module) -> optim.Optimizer:
+    lr = float(config["training"]["learning_rate"])
+    weight_decay = float(config["training"]["weight_decay"])
+    optimizer_name = str(config["training"]["optimizer"]).lower()
+
+    if optimizer_name == "adam":
+        return optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    if optimizer_name == "adamw":
+        return optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    if optimizer_name == "sgd":
+        return optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
+    raise ValueError(f"Unsupported optimizer: {optimizer_name}")
+
+
+def create_scheduler(config: dict, optimizer: optim.Optimizer):
+    scheduler_name = str(config["training"]["scheduler"]).lower()
+    epochs = int(config["training"]["num_epochs"])
+
+    if scheduler_name == "cosine":
+        return optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    if scheduler_name == "step":
+        return optim.lr_scheduler.StepLR(optimizer, step_size=max(1, epochs // 3), gamma=0.1)
+    if scheduler_name == "plateau":
+        return optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", patience=3)
+    return None
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Train one VinBigData classifier.")
+    parser.add_argument("--config", default="configs/default_config.yaml")
+    parser.add_argument("--model", default=None, help="Override model name from config.")
+    parser.add_argument("--epochs", type=int, default=None, help="Override epoch count from config.")
+    parser.add_argument("--save-dir", default=None, help="Override checkpoint directory.")
+    parser.add_argument("--log-dir", default=None, help="Override log directory.")
     args = parser.parse_args()
-    
-    # Load config
-    config = load_config(args.config)
-    
-    # Override config with command line args
-    if args.model:
-        config['model']['name'] = args.model
-    if args.epochs:
-        config['training']['num_epochs'] = args.epochs
-    if args.save_dir:
-        config['save_dir'] = args.save_dir
-    if args.log_dir:
-        config['log_dir'] = args.log_dir
-    
-    # Anomaly models require anomaly-mode data and binary anomaly selection metrics.
-    if config['model']['name'] in ['autoencoder', 'vae']:
-        config['data']['mode'] = 'anomaly'
-        if config['training'].get('metric_name') == 'auc_roc_macro':
-            config['training']['metric_name'] = 'auc_roc'
-    
-    # Set device with graceful fallback when CUDA is configured but unavailable.
-    requested_device = str(config.get('device', 'auto')).lower()
-    if requested_device == 'auto':
-        resolved_device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    elif requested_device.startswith('cuda') and not torch.cuda.is_available():
-        print("Warning: CUDA requested in config but is not available. Falling back to CPU.")
-        resolved_device = 'cpu'
-    else:
-        resolved_device = requested_device
 
-    device = torch.device(resolved_device)
+    config = load_config(args.config)
+    if args.model:
+        config["model"]["name"] = args.model
+    if args.epochs is not None:
+        config["training"]["num_epochs"] = args.epochs
+    if args.save_dir:
+        config["save_dir"] = args.save_dir
+    if args.log_dir:
+        config["log_dir"] = args.log_dir
+
+    model_name = config["model"]["name"]
+    if model_name not in SUPPORTED_MODELS:
+        raise ValueError(
+            f"Unsupported model '{model_name}'. "
+            f"Expected one of: {', '.join(sorted(SUPPORTED_MODELS))}"
+        )
+
+    device = resolve_device(config)
     if torch.cuda.is_available():
-        num_gpus = torch.cuda.device_count()
-        print(f"CUDA available: {num_gpus} GPU(s)")
-        for i in range(num_gpus):
-            print(f"  GPU {i}: {torch.cuda.get_device_name(i)}")
+        print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
     print(f"Using device: {device}")
-    
-    # Create datasets
-    data_dir = Path(config['data']['data_dir'])
-    train_csv = config['data'].get('train_csv')
-    if train_csv:
-        csv_path = data_dir / train_csv
-        csv_path = str(csv_path) if csv_path.exists() else None
-    else:
-        # Try default train.csv
-        default_csv = data_dir / 'train.csv'
-        csv_path = str(default_csv) if default_csv.exists() else None
-    
-    train_split = config['data'].get('train_split', 0.8)
-    val_split = config['data'].get('val_split', 0.2)
-    seed = config.get('seed', 42)
-    
-    if config['data']['mode'] == 'anomaly' and config['model']['name'] in ['autoencoder', 'vae']:
-        # Anomaly detection mode
-        train_dataset = AnomalyDetectionDataset(
-            data_dir=str(data_dir),
-            csv_path=csv_path,
-            image_size=config['data']['image_size'],
-            split="train",
-            normal_only=config['anomaly']['normal_only'],
-            train_split=train_split,
-            val_split=val_split,
-            seed=seed,
-        )
-        val_dataset = AnomalyDetectionDataset(
-            data_dir=str(data_dir),
-            csv_path=csv_path,
-            image_size=config['data']['image_size'],
-            split="val",  # Use val split from training data
-            normal_only=False,
-            train_split=train_split,
-            val_split=val_split,
-            seed=seed,
-        )
-    else:
-        # Classification mode
-        train_dataset = ChestXRayDataset(
-            data_dir=str(data_dir),
-            csv_path=csv_path,
-            image_size=config['data']['image_size'],
-            split="train",
-            mode=config['data']['mode'],
-            train_split=train_split,
-            val_split=val_split,
-            seed=seed,
-        )
-        val_dataset = ChestXRayDataset(
-            data_dir=str(data_dir),
-            csv_path=csv_path,
-            image_size=config['data']['image_size'],
-            split="val",  # Use val split from training data
-            mode=config['data']['mode'],
-            train_split=train_split,
-            val_split=val_split,
-            seed=seed,
-        )
-    
-    # Create data loaders
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=config['data']['batch_size'],
-        shuffle=True,
-        num_workers=config['data']['num_workers'],
-        pin_memory=True if device.type == 'cuda' else False,
-    )
-    
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=config['data']['batch_size'],
-        shuffle=False,
-        num_workers=config['data']['num_workers'],
-        pin_memory=True if device.type == 'cuda' else False,
-    )
-    
-    print(f"Train samples: {len(train_dataset)}")
-    print(f"Val samples: {len(val_dataset)}")
-    
-    # Create model
+
+    train_loader, val_loader = build_dataloaders(config, device)
+    print(f"Train samples: {len(train_loader.dataset)}")
+    print(f"Val samples: {len(val_loader.dataset)}")
+
     model = create_model(config)
-    print(f"\nModel: {config['model']['name']}")
+    print(f"Model: {model_name}")
     print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
-    
-    # Create loss function
-    if config['training']['criterion'] == 'bce':
-        criterion = nn.BCEWithLogitsLoss()
-    elif config['training']['criterion'] == 'focal':
-        # Focal loss implementation would go here
-        criterion = nn.BCEWithLogitsLoss()
-    else:
-        criterion = nn.BCEWithLogitsLoss()
-    
-    # Create optimizer (ensure numeric types)
-    lr = float(config['training']['learning_rate'])
-    weight_decay = float(config['training']['weight_decay'])
-    
-    if config['training']['optimizer'] == 'adam':
-        optimizer = optim.Adam(
-            model.parameters(),
-            lr=lr,
-            weight_decay=weight_decay,
-        )
-    elif config['training']['optimizer'] == 'adamw':
-        optimizer = optim.AdamW(
-            model.parameters(),
-            lr=lr,
-            weight_decay=weight_decay,
-        )
-    elif config['training']['optimizer'] == 'sgd':
-        optimizer = optim.SGD(
-            model.parameters(),
-            lr=lr,
-            weight_decay=weight_decay,
-            momentum=0.9,
-        )
-    else:
-        optimizer = optim.AdamW(model.parameters(), lr=lr)
-    
-    # Create scheduler (ensure numeric types)
-    num_epochs = int(config['training']['num_epochs'])
-    
-    if config['training']['scheduler'] == 'cosine':
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            optimizer,
-            T_max=num_epochs,
-        )
-    elif config['training']['scheduler'] == 'step':
-        scheduler = optim.lr_scheduler.StepLR(
-            optimizer,
-            step_size=num_epochs // 3,
-            gamma=0.1,
-        )
-    elif config['training']['scheduler'] == 'plateau':
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='max',
-            factor=0.5,
-            patience=5,
-        )
-    else:
-        scheduler = None
-    
-    # Check for multi-GPU usage
-    use_multi_gpu = config.get('use_multi_gpu', False) and device.type == 'cuda'
-    if use_multi_gpu and torch.cuda.is_available():
-        num_gpus = torch.cuda.device_count()
-        print(f"Multi-GPU training enabled: {num_gpus} GPUs available")
-        if num_gpus > 1:
-            # Increase batch size proportionally for multi-GPU
-            effective_batch_size = config['data']['batch_size'] * num_gpus
-            print(f"Effective batch size: {effective_batch_size} (batch_size={config['data']['batch_size']} × {num_gpus} GPUs)")
-    elif config.get('use_multi_gpu', False) and device.type != 'cuda':
-        print("Multi-GPU disabled because CUDA is not available.")
-    
-    # Create trainer
+
+    criterion = nn.BCEWithLogitsLoss()
+    optimizer = create_optimizer(config, model)
+    scheduler = create_scheduler(config, optimizer)
+
     trainer = Trainer(
         model=model,
         train_loader=train_loader,
@@ -299,21 +215,17 @@ def main():
         criterion=criterion,
         optimizer=optimizer,
         scheduler=scheduler,
-        device=device,
-        save_dir=config['save_dir'],
-        log_dir=config['log_dir'],
-        use_multi_gpu=use_multi_gpu,
+        device=str(device),
+        save_dir=config["save_dir"],
+        log_dir=config["log_dir"],
+        use_multi_gpu=bool(config.get("use_multi_gpu", False)),
     )
-    
-    # Train
     trainer.train(
-        num_epochs=config['training']['num_epochs'],
-        save_best=config['training']['save_best'],
-        metric_name=config['training']['metric_name'],
+        num_epochs=int(config["training"]["num_epochs"]),
+        save_best=bool(config["training"].get("save_best", True)),
+        metric_name=str(config["training"].get("metric_name", "auc_roc_macro")),
     )
-    
-    print("\nTraining completed!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
