@@ -1,0 +1,31 @@
+{
+  "type": "object",
+  "required": [
+    "final_labels",
+    "supported_findings",
+    "uncertain_findings",
+    "localization_supported_findings",
+    "supported_global_buckets",
+    "uncertain_global_buckets",
+    "conflicts",
+    "review_recommendation",
+    "confidence_band",
+    "findings_section",
+    "impression_section",
+    "safety_note"
+  ],
+  "properties": {
+    "final_labels": {"type": "array", "items": {"type": "string"}},
+    "supported_findings": {"type": "array", "items": {"type": "string"}},
+    "uncertain_findings": {"type": "array", "items": {"type": "string"}},
+    "localization_supported_findings": {"type": "array", "items": {"type": "string"}},
+    "supported_global_buckets": {"type": "array", "items": {"type": "string"}},
+    "uncertain_global_buckets": {"type": "array", "items": {"type": "string"}},
+    "conflicts": {"type": "array", "items": {"type": "string"}},
+    "review_recommendation": {"type": "string"},
+    "confidence_band": {"type": "string"},
+    "findings_section": {"type": "string"},
+    "impression_section": {"type": "string"},
+    "safety_note": {"type": "string"}
+  }
+}

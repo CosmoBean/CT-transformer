@@ -1,0 +1,21 @@
+gateway:
+  base_url: "https://ai-gateway.andrew.cmu.edu/v1"
+  model: "claude-sonnet-4-20250514-v1:0"
+  timeout_seconds: 120
+  temperature: 0.0
+  max_tokens: 1200
+  max_retries: 2
+
+review:
+  swin_threshold: 0.5
+  yolo_conf_threshold: 0.25
+  cache_dir: "experiments/claude_review/cache"
+  output_dir: "experiments/claude_review/reports"
+
+paths:
+  prompt_path: "prompts/claude_radiology_reviewer_prompt.md"
+  response_schema_path: "schemas/claude_review_response_schema.json"
+  swin_config: "configs/default_config.yaml"
+  yolo_config: "configs/yolo_v8_detection.yaml"
+  swin_checkpoint: "experiments/agent_swin/checkpoints/best_model.pth"
+  yolo_weights: "experiments/yolo_v8/full_e10local/best.pt"

@@ -1,0 +1,30 @@
+# YOLOv8 detection configuration for VinBigData
+
+data:
+  image_root: "data/train"
+  classification_csv: "data/train.csv"
+  raw_annotation_path: "data/_downloads/train_raw.csv"
+  image_metadata_path: "data/_downloads/vinbig_png/train_meta.csv"
+  output_dir: "experiments/yolo_v8/data"
+  image_size: 512
+  train_split: 0.8
+  val_split: 0.2
+  merge_iou_threshold: 0.3
+  link_mode: "symlink"
+
+model:
+  weights: "yolov8m.pt"
+
+training:
+  num_epochs: 50
+  batch_size: 16
+  num_workers: 4
+  patience: 10
+  project_dir: "experiments/yolo_v8"
+  run_name: "vinbig_yolov8m"
+
+evaluation:
+  conf_threshold: 0.25
+
+device: 0
+seed: 28
