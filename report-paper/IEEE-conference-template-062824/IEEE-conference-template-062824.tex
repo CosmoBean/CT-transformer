@@ -8,6 +8,7 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{booktabs}
+\usepackage{array}
 \usepackage{url}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
@@ -187,7 +188,12 @@ Table~\ref{tab:cases} summarizes representative outcomes from the retained repor
 \label{tab:cases}
 \centering
 \scriptsize
-\begin{tabular}{p{0.14\textwidth}p{0.29\textwidth}p{0.18\textwidth}p{0.16\textwidth}p{0.17\textwidth}}
+\begin{tabular}{@{}
+>{\raggedright\arraybackslash}p{0.11\textwidth}
+>{\raggedright\arraybackslash}p{0.24\textwidth}
+>{\raggedright\arraybackslash}p{0.19\textwidth}
+>{\raggedright\arraybackslash}p{0.16\textwidth}
+>{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
 \toprule
 Case ID & Ground-Truth Labels & Swin / Agentic Summary & YOLO Labels & Key Interpretation \\
 \midrule
