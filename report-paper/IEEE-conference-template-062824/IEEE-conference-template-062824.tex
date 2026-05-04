@@ -54,6 +54,13 @@ The work makes three practical contributions:
 \label{fig:pipeline}
 \end{figure*}
 
+\section{Related Work}
+Chest X-ray AI has already been studied extensively across classification, localization, and report generation. In image-level classification, CheXNet demonstrated the practical value of deep convolutional transfer learning for chest radiograph interpretation \cite{chexnet}. On the VinDr side, Pham et al. introduced an explainable VinDr-CXR system that explicitly combined multi-label classification with lesion localization and showed that such assistance could improve interobserver agreement among readers \cite{pham2022vindr}.
+
+Automated chest X-ray report generation has also been studied before the recent wave of multimodal LLMs. Fine-grained label learning \cite{syedamahmood2020finegrained}, contrastive attention \cite{liu2021contrastive}, and variational topic inference \cite{najdenkoska2022uncertainty} all aim to improve how visual findings are translated into clinically plausible report text. More recent multimodal approaches such as CXR-LLaVA \cite{lee2023cxrllava} and reader studies on GPT-4 impression generation \cite{ziegelmayer2023gpt4} show that large vision-language models can now produce readable chest X-ray summaries, but they are usually trained and evaluated on large report corpora such as MIMIC-CXR rather than on a label-and-box dataset like the retained VinBigData subset used here.
+
+Our project therefore does not claim to be the first to combine imaging models with language generation. Instead, the distinguishing choice is pragmatic: rather than train a new end-to-end report generator, we start from a bounded VinBigData subset with image-level labels and localization annotations, then assemble a reproducible decision-support workflow that keeps the classifier, detector, and reporting stages explicitly separable and auditable.
+
 \section{Dataset and Task Formulation}
 The study uses the current 15-label VinBigData subset available in the repository. The retained labels are \textit{Aortic enlargement}, \textit{Atelectasis}, \textit{Calcification}, \textit{Cardiomegaly}, \textit{Consolidation}, \textit{ILD}, \textit{Infiltration}, \textit{Lung Opacity}, \textit{Nodule/Mass}, \textit{Other lesion}, \textit{Pleural effusion}, \textit{Pleural thickening}, \textit{Pneumothorax}, \textit{Pulmonary fibrosis}, and \textit{No finding}. The image-level task is multi-label classification because a single radiograph may contain multiple concurrent findings.
 
@@ -224,11 +231,18 @@ The author thanks the course staff, collaborators, and compute support teams who
 
 \begin{thebibliography}{00}
 \bibitem{vinbigdata} H. Q. Nguyen et al., ``VinDr-CXR: An open dataset of chest X-rays with radiologist's annotations,'' \textit{Scientific Data}, vol. 9, no. 1, 2022.
+\bibitem{chexnet} P. Rajpurkar et al., ``CheXNet: Radiologist-level pneumonia detection on chest X-rays with deep learning,'' \textit{arXiv preprint arXiv:1711.05225}, 2017.
+\bibitem{pham2022vindr} H. H. Pham et al., ``An accurate and explainable deep learning system improves interobserver agreement in the interpretation of chest radiograph,'' \textit{arXiv preprint arXiv:2208.03545}, 2022.
 \bibitem{swin} Z. Liu et al., ``Swin Transformer: Hierarchical vision transformer using shifted windows,'' in \textit{Proc. IEEE/CVF International Conference on Computer Vision}, 2021, pp. 10012--10022.
 \bibitem{vit} A. Dosovitskiy et al., ``An image is worth 16x16 words: Transformers for image recognition at scale,'' in \textit{International Conference on Learning Representations}, 2021.
 \bibitem{resnet} K. He, X. Zhang, S. Ren, and J. Sun, ``Deep residual learning for image recognition,'' in \textit{Proc. IEEE Conference on Computer Vision and Pattern Recognition}, 2016, pp. 770--778.
 \bibitem{efficientnet} M. Tan and Q. Le, ``EfficientNet: Rethinking model scaling for convolutional neural networks,'' in \textit{International Conference on Machine Learning}, 2019, pp. 6105--6114.
 \bibitem{yolo} G. Jocher, A. Chaurasia, and J. Qiu, ``Ultralytics YOLO,'' 2023. [Online]. Available: \url{https://github.com/ultralytics/ultralytics}
+\bibitem{syedamahmood2020finegrained} T. Syeda-Mahmood et al., ``Chest X-ray report generation through fine-grained label learning,'' \textit{arXiv preprint arXiv:2007.13831}, 2020.
+\bibitem{liu2021contrastive} F. Liu et al., ``Contrastive attention for automatic chest X-ray report generation,'' in \textit{Findings of ACL}, 2021.
+\bibitem{najdenkoska2022uncertainty} I. Najdenkoska et al., ``Uncertainty-aware report generation for chest X-rays by variational topic inference,'' \textit{Medical Image Analysis}, vol. 82, p. 102603, 2022.
+\bibitem{lee2023cxrllava} S. Lee et al., ``CXR-LLAVA: A multimodal large language model for interpreting chest X-ray images,'' \textit{arXiv preprint arXiv:2310.18341}, 2023.
+\bibitem{ziegelmayer2023gpt4} S. Ziegelmayer et al., ``Evaluation of GPT-4's chest X-ray impression generation: A reader study on performance and perception,'' \textit{JMIR Medical Informatics}, vol. 25, p. e50865, 2023.
 \end{thebibliography}
 
 \end{document}
