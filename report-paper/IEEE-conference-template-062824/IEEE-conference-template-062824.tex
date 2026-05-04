@@ -1,0 +1,205 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{An Explainable Multi-Stage Decision-Support Pipeline for Chest X-Ray Classification, Localization, and Structured Reporting}
+
+\author{\IEEEauthorblockN{Sri Datta Ganesh Bandreddi}
+\IEEEauthorblockA{\textit{Biomedical Engineering} \\
+\textit{Carnegie Mellon University}\\
+Pittsburgh, PA, USA \\
+sbandred@andrew.cmu.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+Chest X-ray analysis is clinically useful only when an automated system provides more than an image-level abnormality score. A deployable decision-support workflow should couple classification, spatial evidence, and a concise explanation that a clinician can audit. This work presents a multi-stage pipeline for a 15-label subset of the VinBigData chest X-ray dataset. The pipeline combines image-level multi-label classification, YOLO-based localization, and an agentic reporting layer that converts model outputs into a structured decision-support summary. The study compares a lightweight CNN trained from scratch with ImageNet-pretrained EfficientNet-B3, ResNet-50, Vision Transformer, and Swin Transformer models. Swin achieves the strongest image-level performance with a macro AUC-ROC of 0.9618, while a 1.31M-parameter CNN remains competitive at 0.9280. The YOLOv8m localization branch improves from 0.1723 to 0.2452 mAP@0.5 with extended training. On a 300-case review slice, the agentic reporting workflow attains 0.750 exact-match accuracy and 0.9560 macro accuracy, while producing standardized summaries grounded in classifier probabilities and detector outputs. The resulting system is best interpreted as an explainable decision-support pipeline rather than a standalone diagnostic model.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Chest X-ray, VinBigData, multi-label classification, Swin Transformer, YOLOv8, explainable AI, clinical decision support, structured reporting.
+\end{IEEEkeywords}
+
+\section{Introduction}
+Chest radiography remains one of the most common imaging studies in routine clinical care. Consequently, machine learning systems for chest X-ray analysis are most useful when they support a clinician-facing workflow rather than only maximize a leaderboard metric. In practice, a clinically readable system should answer at least three questions: what findings are predicted, where the relevant image evidence is located, and how the evidence should be summarized for review.
+
+This project was therefore framed as a decision-support problem rather than as a pure classification benchmark. The resulting workflow combines three components: (1) multi-label image classification, (2) bounding-box localization, and (3) a structured reporting layer that organizes the evidence into a standardized summary. The design goal is not to replace radiologist interpretation, but to provide a more interpretable intermediate product than raw probabilities alone.
+
+The work makes three practical contributions:
+\begin{itemize}
+    \item a reproducible comparison between a from-scratch CNN baseline and several transfer-learning classifiers on a 15-label VinBigData subset,
+    \item a YOLOv8m localization branch trained on the available VinBigData bounding-box annotations, and
+    \item an agentic reporting layer that merges classifier probabilities and detector outputs into a concise decision-support summary.
+\end{itemize}
+
+\section{Dataset and Task Formulation}
+The study uses the current 15-label VinBigData subset available in the repository. The retained labels are \textit{Aortic enlargement}, \textit{Atelectasis}, \textit{Calcification}, \textit{Cardiomegaly}, \textit{Consolidation}, \textit{ILD}, \textit{Infiltration}, \textit{Lung Opacity}, \textit{Nodule/Mass}, \textit{Other lesion}, \textit{Pleural effusion}, \textit{Pleural thickening}, \textit{Pneumothorax}, \textit{Pulmonary fibrosis}, and \textit{No finding}. The image-level task is multi-label classification because a single radiograph may contain multiple concurrent findings.
+
+For localization, the raw VinBigData bounding-box annotations are used to train a YOLOv8m detector. The classification and localization tasks are connected only downstream in the reporting workflow. They are evaluated separately because they answer different clinical questions: classification predicts whether a finding is present anywhere in the image, while localization tests whether the model can identify spatially plausible supporting regions.
+
+The repository uses a fixed train-validation split of 12,000 training images and 3,000 validation images. This split is reused across the retained experiments to support comparability and reproducibility.
+
+\section{Methods}
+\subsection{Image-Level Classification}
+All classification models were trained under a unified multi-label setup. Input chest X-rays were resized to $512\times512$, the data split was fixed, and training used binary cross-entropy with logits:
+\begin{equation}
+\mathcal{L}_{\mathrm{BCE}}=-\frac{1}{NC}\sum_{i=1}^{N}\sum_{c=1}^{C}
+\left[y_{ic}\log \sigma(z_{ic}) + (1-y_{ic})\log(1-\sigma(z_{ic}))\right],
+\end{equation}
+where $N$ is the batch size, $C=15$ is the number of labels, $y_{ic}$ is the binary ground-truth label, and $z_{ic}$ is the model logit for class $c$.
+
+The retained classifiers are:
+\begin{itemize}
+    \item \textbf{simple\_cnn}: a 1.31M-parameter CNN trained from scratch,
+    \item \textbf{efficientnet\_b3}: an ImageNet-pretrained EfficientNet-B3 with a task-specific head,
+    \item \textbf{resnet50}: an ImageNet-pretrained ResNet-50 with a task-specific head,
+    \item \textbf{vit\_base}: a Vision Transformer baseline, and
+    \item \textbf{swin\_base}: a hierarchical Swin Transformer.
+\end{itemize}
+
+This benchmark isolates two practical questions: whether strong performance requires a large transformer, and how much the pipeline benefits from transfer learning relative to a lightweight from-scratch baseline.
+
+\subsection{Localization with YOLOv8m}
+Localization uses YOLOv8m trained on the retained VinBigData bounding boxes. Two views of performance are reported. First, YOLO is evaluated as a detector using mAP@0.5 and mAP@0.5:0.95. Second, detections are converted into image-level labels so that the detector can be compared to the image-level classifier as a supporting source of evidence. The latter evaluation is not intended to replace the detection metrics; it quantifies how much clinically relevant label signal is recoverable from bounding boxes alone.
+
+\subsection{Agentic Reporting Layer}
+The final stage is an agentic review layer:
+\begin{equation}
+\text{CXR} \rightarrow \text{classifier} \rightarrow \text{detector} \rightarrow \text{agentic AI} \rightarrow \text{structured report}.
+\end{equation}
+
+The reporting model does not operate directly as a diagnostic classifier. Instead, it consumes (1) the full classifier probability vector, (2) thresholded predicted labels, (3) YOLO detections and confidences, (4) bounding boxes, and (5) classifier-detector agreement or disagreement. The resulting report contains supported findings, uncertain findings, a short impression, review guidance, and a safety statement.
+
+To improve readability, the report also maps low-level findings into a small set of derived global buckets, including \textit{No acute abnormality}, \textit{Cardiomediastinal abnormality}, \textit{Pleural abnormality}, and \textit{Chronic interstitial or fibrotic pattern}. These are interpretive summaries only; they are not treated as additional supervised labels.
+
+\section{Experimental Setup}
+The retained training scripts use fixed defaults to support reproducibility. The from-scratch CNN was trained for 100 epochs. The transfer-learning classification runs were executed for 10 epochs each. YOLOv8m was first trained for 10 epochs and then extended to a longer 50-epoch multi-GPU run. The classification models were trained with AdamW, a learning rate of $10^{-4}$, weight decay of $10^{-4}$, and cosine scheduling. The primary classification metric is macro AUC-ROC.
+
+All experiments were run on the \texttt{oc4} compute environment. The final reproduction workflow is structured so that classification and localization runs can be launched consistently from the cleaned repository layout.
+
+\section{Results}
+\subsection{Image-Level Classification}
+Table~\ref{tab:classification} summarizes the image-level classification benchmark. Swin is the strongest image-level classifier with a macro AUC-ROC of 0.9618. EfficientNet-B3 and ResNet-50 are also strong, indicating that transfer learning from natural-image pretraining remains effective in this setting. The most notable baseline result is the from-scratch CNN, which achieves 0.9280 macro AUC-ROC with only 1.31M parameters. By contrast, the ViT baseline underperforms in this setup.
+
+\begin{table}[t]
+\caption{Image-Level Classification Results on the 15-Label VinBigData Subset}
+\label{tab:classification}
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+Model & Params & Epochs & Macro AUC-ROC \\
+\midrule
+simple\_cnn & 1.31M & 100 & 0.9280 \\
+efficientnet\_b3 & 11.49M & 10 & 0.9504 \\
+resnet50 & 24.56M & 10 & 0.9453 \\
+vit\_base & 86.84M & 10 & 0.8417 \\
+swin\_base & 87.28M & 10 & 0.9618 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two observations follow. First, strong performance does not require a transformer by default: the CNN baseline is substantially better than a weakly configured ViT path and is not far from the transfer-learning baselines. Second, architecture still matters at the high end: Swin's hierarchical design appears better matched to this problem than the ViT configuration used here.
+
+\subsection{Localization Performance}
+Table~\ref{tab:yolo} reports the localization results. The initial 10-epoch YOLOv8m run yields 0.1723 mAP@0.5 and 0.0981 mAP@0.5:0.95. With extended training, the detector improves to 0.2452 mAP@0.5 and 0.1295 mAP@0.5:0.95. Derived image-level macro F1 also improves markedly from 0.3188 to 0.5422.
+
+\begin{table}[t]
+\caption{YOLOv8m Detection and Derived Image-Level Results}
+\label{tab:yolo}
+\centering
+\footnotesize
+\begin{tabular}{lccccc}
+\toprule
+Run & mAP@0.5 & mAP@0.5:0.95 & Exact & Macro Acc & Macro F1 \\
+\midrule
+10 epochs & 0.1723 & 0.0981 & 0.7470 & 0.9501 & 0.3188 \\
+50 epochs & 0.2452 & 0.1295 & 0.7473 & 0.9567 & 0.5422 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+YOLO remains weaker than Swin as a primary image-level predictor, but that is not its main role in the pipeline. Its practical value lies in providing spatial evidence that can confirm, qualify, or challenge a classifier prediction inside the report-generation stage.
+
+\subsection{End-to-End Agentic Workflow}
+The agentic reporting workflow was evaluated on a 300-case review slice. Table~\ref{tab:agentic} shows that the reporting pipeline slightly improves exact-match accuracy and macro accuracy relative to the individual components, while remaining below Swin on macro F1. This is consistent with the intended role of the layer: it is primarily an explainability and communication module, not a new visual backbone.
+
+\begin{table}[t]
+\caption{300-Case Comparison of the End-to-End Decision-Support Workflow}
+\label{tab:agentic}
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+System & Exact-Match & Macro Acc & Macro F1 \\
+\midrule
+Swin classifier & 0.7400 & 0.9542 & 0.5671 \\
+YOLO-derived labels & 0.7300 & 0.9464 & 0.3286 \\
+Agentic AI workflow & 0.7500 & 0.9560 & 0.4855 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The same 300-case study also provides a more interpretable operational view. The agentic layer improved over Swin on 16 cases and over YOLO on 33 cases, while underperforming Swin on 12 cases and YOLO on 9 cases. These numbers suggest modest quantitative benefit at the end-to-end level, but the stronger value of the reporting stage is qualitative: it organizes raw predictions into a clinician-readable summary with explicit support and uncertainty.
+
+\subsection{Qualitative Case Studies}
+Table~\ref{tab:cases} summarizes representative outcomes from the retained report set. These examples illustrate that the pipeline is strongest when a classifier signal and a detector signal are mutually supportive, and weakest when diffuse abnormalities are only partially captured by the detector.
+
+\begin{table*}[t]
+\caption{Representative Qualitative Cases from the Structured Reporting Workflow}
+\label{tab:cases}
+\centering
+\scriptsize
+\begin{tabular}{p{0.14\textwidth}p{0.29\textwidth}p{0.18\textwidth}p{0.16\textwidth}p{0.17\textwidth}}
+\toprule
+Case ID & Ground-Truth Labels & Swin / Agentic Summary & YOLO Labels & Key Interpretation \\
+\midrule
+302b0d07\ldots & No finding & No finding & No finding & Clean normal case; all components agree and the report remains conservative. \\
+ba5e3409\ldots & Consolidation, Lung Opacity, Other lesion, Pleural effusion, Pleural thickening, Pneumothorax, Pulmonary fibrosis & Consolidation, Lung Opacity, Pleural effusion, Pleural thickening, Pulmonary fibrosis & Aortic enlargement, Lung Opacity, Pleural effusion & The pipeline captures the dominant pleural and airspace pattern, but misses \textit{Other lesion} and \textit{Pneumothorax}; YOLO adds support but also injects a spurious aortic signal. \\
+305e4add\ldots & Atelectasis, Infiltration, Lung Opacity, Other lesion, Pleural effusion, Pleural thickening, Pneumothorax, Pulmonary fibrosis & Lung Opacity, Pleural effusion, Pleural thickening, Pulmonary fibrosis & Aortic enlargement & Hard diffuse abnormality case; the system captures the broader pleural and fibrotic picture but misses several finer labels and shows weak localization support. \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Discussion}
+The central result is that the project succeeds more as a workflow than as a claim of architectural novelty. Swin provides the strongest image-level performance, YOLO adds a useful but imperfect localization signal, and the agentic review layer makes the combined output easier to interpret. This is a meaningful outcome for a clinical AI project because operational clarity often matters more than a small gain on a single benchmark.
+
+The CNN baseline is also important to the scientific story. A 1.31M-parameter model trained from scratch reached 0.9280 macro AUC-ROC, which prevents the work from overstating the necessity of large transformers for this dataset. Conversely, the Swin result shows that stronger pretraining and architectural bias still matter at the top end of the benchmark.
+
+The localization branch provides complementary value rather than replacing classification. Its detection mAP remains modest, but the branch becomes more useful when framed as supporting evidence within a structured report. This is particularly true for localized or focal abnormalities. The detector is less reliable for diffuse abnormalities, which is consistent with both the metric behavior and the qualitative case studies.
+
+\section{Limitations}
+Several limitations should be made explicit. First, this study uses a retained 15-label VinBigData subset rather than the full original taxonomy. Second, the agentic layer has not been clinically validated against radiologist-authored free-text reports. Third, the report-generation stage remains dependent on upstream model quality; it does not correct all classification or localization errors. Fourth, the current analysis emphasizes aggregate metrics and does not yet include calibration studies, external validation, reader studies, or subgroup analyses.
+
+These limitations are important for publication framing. The present system should be interpreted as an explainable decision-support prototype with a reproducible code path, not as a clinically deployable autonomous reporting system.
+
+\section{Conclusion}
+This work presents a practical multi-stage chest X-ray decision-support pipeline built on the VinBigData dataset subset available in the repository. Swin is the strongest image-level classifier, a lightweight CNN provides a strong sanity-check baseline, YOLO contributes localization evidence, and the agentic reporting layer converts model outputs into a structured summary that is easier to audit than raw probabilities alone. The resulting system is therefore best described as a clinically motivated, explainable workflow for chest X-ray analysis rather than as a new standalone diagnostic model.
+
+\section*{Acknowledgment}
+The author thanks the course staff, collaborators, and compute support teams who made the experiments possible.
+
+\begin{thebibliography}{00}
+\bibitem{vinbigdata} H. Q. Nguyen et al., ``VinDr-CXR: An open dataset of chest X-rays with radiologist's annotations,'' \textit{Scientific Data}, vol. 9, no. 1, 2022.
+\bibitem{swin} Z. Liu et al., ``Swin Transformer: Hierarchical vision transformer using shifted windows,'' in \textit{Proc. IEEE/CVF International Conference on Computer Vision}, 2021, pp. 10012--10022.
+\bibitem{vit} A. Dosovitskiy et al., ``An image is worth 16x16 words: Transformers for image recognition at scale,'' in \textit{International Conference on Learning Representations}, 2021.
+\bibitem{resnet} K. He, X. Zhang, S. Ren, and J. Sun, ``Deep residual learning for image recognition,'' in \textit{Proc. IEEE Conference on Computer Vision and Pattern Recognition}, 2016, pp. 770--778.
+\bibitem{efficientnet} M. Tan and Q. Le, ``EfficientNet: Rethinking model scaling for convolutional neural networks,'' in \textit{International Conference on Machine Learning}, 2019, pp. 6105--6114.
+\bibitem{yolo} G. Jocher, A. Chaurasia, and J. Qiu, ``Ultralytics YOLO,'' 2023. [Online]. Available: \url{https://github.com/ultralytics/ultralytics}
+\end{thebibliography}
+
+\end{document}
