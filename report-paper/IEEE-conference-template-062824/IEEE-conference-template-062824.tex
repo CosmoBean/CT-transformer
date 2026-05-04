@@ -46,12 +46,12 @@ The work makes three practical contributions:
     \item an agentic reporting layer that merges classifier probabilities and detector outputs into a concise decision-support summary.
 \end{itemize}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/pipeline_abstract.png}
+\includegraphics[width=0.9\textwidth]{figures/pipeline_abstract.png}
 \caption{Locked workflow used in the final repository: chest X-ray image, Swin classification, YOLO localization support, and agentic AI report generation.}
 \label{fig:pipeline}
-\end{figure}
+\end{figure*}
 
 \section{Dataset and Task Formulation}
 The study uses the current 15-label VinBigData subset available in the repository. The retained labels are \textit{Aortic enlargement}, \textit{Atelectasis}, \textit{Calcification}, \textit{Cardiomegaly}, \textit{Consolidation}, \textit{ILD}, \textit{Infiltration}, \textit{Lung Opacity}, \textit{Nodule/Mass}, \textit{Other lesion}, \textit{Pleural effusion}, \textit{Pleural thickening}, \textit{Pneumothorax}, \textit{Pulmonary fibrosis}, and \textit{No finding}. The image-level task is multi-label classification because a single radiograph may contain multiple concurrent findings.
@@ -71,8 +71,14 @@ The repository uses a fixed train-validation split of 12,000 training images and
 \subsection{Image-Level Classification}
 All classification models were trained under a unified multi-label setup. Input chest X-rays were resized to $512\times512$, the data split was fixed, and training used binary cross-entropy with logits:
 \begin{equation}
-\mathcal{L}_{\mathrm{BCE}}=-\frac{1}{NC}\sum_{i=1}^{N}\sum_{c=1}^{C}
-\left[y_{ic}\log \sigma(z_{ic}) + (1-y_{ic})\log(1-\sigma(z_{ic}))\right],
+\begin{aligned}
+\mathcal{L}_{\mathrm{BCE}} &=
+-\frac{1}{NC}\sum_{i=1}^{N}\sum_{c=1}^{C}
+\Bigl[
+y_{ic}\log \sigma(z_{ic}) \\
+&\qquad\qquad + (1-y_{ic})\log(1-\sigma(z_{ic}))
+\Bigr],
+\end{aligned}
 \end{equation}
 where $N$ is the batch size, $C=15$ is the number of labels, $y_{ic}$ is the binary ground-truth label, and $z_{ic}$ is the model logit for class $c$.
 
@@ -93,7 +99,13 @@ Localization uses YOLOv8m trained on the retained VinBigData bounding boxes. YOL
 \subsection{Agentic Reporting Layer}
 The final stage is an agentic review layer:
 \begin{equation}
-\text{CXR} \rightarrow \text{classifier} \rightarrow \text{detector} \rightarrow \text{agentic AI} \rightarrow \text{structured report}.
+\begin{aligned}
+\text{CXR}
+&\rightarrow \text{classifier}
+\rightarrow \text{detector} \\
+&\rightarrow \text{agentic AI}
+\rightarrow \text{structured report}.
+\end{aligned}
 \end{equation}
 
 The reporting model does not operate directly as a diagnostic classifier. Instead, it consumes (1) the full classifier probability vector, (2) thresholded predicted labels, (3) YOLO detections and confidences, (4) bounding boxes, and (5) classifier-detector agreement or disagreement. The resulting report contains supported findings, uncertain findings, a short impression, review guidance, and a safety statement.
