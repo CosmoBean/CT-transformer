@@ -27,7 +27,7 @@ sbandred@andrew.cmu.edu}
 \maketitle
 
 \begin{abstract}
-Chest X-ray analysis is clinically useful only when an automated system provides more than an image-level abnormality score. A deployable decision-support workflow should couple classification, spatial evidence, and a concise explanation that a clinician can audit. This work presents a multi-stage pipeline for a 15-label subset of the VinBigData chest X-ray dataset. The pipeline combines image-level multi-label classification, YOLO-based localization, and an agentic reporting layer that converts model outputs into a structured decision-support summary. The study compares a lightweight CNN trained from scratch with ImageNet-pretrained EfficientNet-B3, ResNet-50, Vision Transformer, and Swin Transformer models. Swin achieves the strongest image-level performance with a macro AUC-ROC of 0.9665, while a 1.31M-parameter CNN remains competitive at 0.9314. The best retained YOLOv8m localization run reaches 0.3666 mAP@0.5 and 0.1793 mAP@0.5:0.95. On a 300-case review slice, the agentic reporting workflow attains 0.750 exact-match accuracy and 0.9560 macro accuracy, while producing standardized summaries grounded in classifier probabilities and detector outputs. The resulting system is best interpreted as an explainable decision-support pipeline rather than a standalone diagnostic model.
+Chest X-ray analysis is clinically useful only when an automated system provides more than an image-level abnormality score. A deployable decision-support workflow should couple classification, spatial evidence, and a concise explanation that a clinician can audit. This work presents a multi-stage pipeline for a 15-label subset of the VinBigData chest X-ray dataset. The pipeline combines image-level multi-label classification, YOLO-based localization, and an agentic reporting layer that converts model outputs into a structured decision-support summary. The study compares a lightweight CNN trained from scratch with ImageNet-pretrained EfficientNet-B3, ResNet-50, Vision Transformer, and Swin Transformer models. Swin achieves the strongest image-level performance with a macro AUC-ROC of 0.9665, while a 1.31M-parameter CNN remains competitive at 0.9314. The best retained YOLOv8m localization run reaches 0.3666 mAP@0.5. On a 300-case review slice, the agentic reporting workflow attains 0.750 exact-match accuracy and 0.9560 macro accuracy, while producing standardized summaries grounded in classifier probabilities and detector outputs. The resulting system is best interpreted as an explainable decision-support pipeline rather than a standalone diagnostic model.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -88,7 +88,7 @@ The retained classifiers are:
 This benchmark isolates two practical questions: whether strong performance requires a large transformer, and how much the pipeline benefits from transfer learning relative to a lightweight from-scratch baseline.
 
 \subsection{Localization with YOLOv8m}
-Localization uses YOLOv8m trained on the retained VinBigData bounding boxes. Two views of performance are reported. First, YOLO is evaluated as a detector using mAP@0.5 and mAP@0.5:0.95. Second, detections are converted into image-level labels so that the detector can be compared to the image-level classifier as a supporting source of evidence. The latter evaluation is not intended to replace the detection metrics; it quantifies how much clinically relevant label signal is recoverable from bounding boxes alone.
+Localization uses YOLOv8m trained on the retained VinBigData bounding boxes. YOLO is evaluated as a detector using mAP@0.5, and its detections are also converted into image-level labels so that the detector can be compared to the image-level classifier as a supporting source of evidence. The latter evaluation is not intended to replace the detection metric; it quantifies how much clinically relevant label signal is recoverable from bounding boxes alone.
 
 \subsection{Agentic Reporting Layer}
 The final stage is an agentic review layer:
@@ -137,7 +137,7 @@ swin\_base & 87.28M & 10 & 0.9665 \\
 Two observations follow. First, strong performance does not require a transformer by default: the CNN baseline is substantially better than a weakly configured ViT path and is not far from the transfer-learning baselines. Second, architecture still matters at the high end: Swin's hierarchical design appears better matched to this problem than the ViT configuration used here.
 
 \subsection{Localization Performance}
-YOLO is intentionally treated as a supporting localization model rather than a competing image-level classifier. The best retained YOLOv8m run reached 0.3666 mAP@0.5 and 0.1793 mAP@0.5:0.95, while a larger YOLOv8l variant did not materially improve on that result. This reinforces the final design decision: Swin remains the primary visual model, and YOLO is used to provide spatial evidence that can confirm, qualify, or challenge a classifier prediction inside the reporting stage.
+YOLO is intentionally treated as a supporting localization model rather than a competing image-level classifier. The best retained YOLOv8m run reached 0.3666 mAP@0.5, while a larger YOLOv8l variant did not materially improve on that result. This reinforces the final design decision: Swin remains the primary visual model, and YOLO is used to provide spatial evidence that can confirm, qualify, or challenge a classifier prediction inside the reporting stage.
 
 \subsection{End-to-End Agentic Workflow}
 The agentic reporting workflow was evaluated on a 300-case review slice. Table~\ref{tab:agentic} shows that the reporting pipeline slightly improves exact-match accuracy and macro accuracy relative to the individual components, while remaining below Swin on macro F1. This is consistent with the intended role of the layer: it is primarily an explainability and communication module, not a new visual backbone.
@@ -166,7 +166,7 @@ Table~\ref{tab:cases} summarizes representative outcomes from the retained repor
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/example_report_case.png}
-\caption{Example report case used in the final workflow. The original chest X-ray, YOLO localization support, and concise agentic summary are shown together for a case with cardiomegaly and aortic enlargement.}
+\caption{Example report case used in the final workflow. The original chest X-ray, YOLO localization support, and concise agentic summary are shown together for a clean cardiomediastinal case with exact agreement on aortic enlargement and cardiomegaly.}
 \label{fig:examplecase}
 \end{figure*}
 
@@ -180,8 +180,8 @@ Table~\ref{tab:cases} summarizes representative outcomes from the retained repor
 Case ID & Ground-Truth Labels & Swin / Agentic Summary & YOLO Labels & Key Interpretation \\
 \midrule
 302b0d07\ldots & No finding & No finding & No finding & Clean normal case; all components agree and the report remains conservative. \\
-ba5e3409\ldots & Consolidation, Lung Opacity, Other lesion, Pleural effusion, Pleural thickening, Pneumothorax, Pulmonary fibrosis & Consolidation, Lung Opacity, Pleural effusion, Pleural thickening, Pulmonary fibrosis & Aortic enlargement, Lung Opacity, Pleural effusion & The pipeline captures the dominant pleural and airspace pattern, but misses \textit{Other lesion} and \textit{Pneumothorax}; YOLO adds support but also injects a spurious aortic signal. \\
-305e4add\ldots & Atelectasis, Infiltration, Lung Opacity, Other lesion, Pleural effusion, Pleural thickening, Pneumothorax, Pulmonary fibrosis & Lung Opacity, Pleural effusion, Pleural thickening, Pulmonary fibrosis & Aortic enlargement & Hard diffuse abnormality case; the system captures the broader pleural and fibrotic picture but misses several finer labels and shows weak localization support. \\
+a3d5137d\ldots & Aortic enlargement, Cardiomegaly & Aortic enlargement, Cardiomegaly & Aortic enlargement, Cardiomegaly & Clean cardiomediastinal case; classifier and detector agree exactly with the radiologist labels, making the final report easy to support. \\
+127f6676\ldots & Aortic enlargement, Cardiomegaly, Lung Opacity, Nodule/Mass & Aortic enlargement, Cardiomegaly, Lung Opacity, Nodule/Mass & Aortic enlargement, Cardiomegaly, Nodule/Mass & Strong multi-finding case; YOLO localizes three of the four radiologist labels and misses only the more diffuse \textit{Lung Opacity} finding. \\
 \bottomrule
 \end{tabular}
 \end{table*}
