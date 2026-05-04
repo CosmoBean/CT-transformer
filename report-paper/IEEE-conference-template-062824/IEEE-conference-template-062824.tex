@@ -181,7 +181,7 @@ Agentic AI workflow & 0.7500 & 0.9560 & 0.4855 \\
 The same 300-case study also provides a more interpretable operational view. The agentic layer improved over Swin on 16 cases and over YOLO on 33 cases, while underperforming Swin on 12 cases and YOLO on 9 cases. These numbers suggest modest quantitative benefit at the end-to-end level, but the stronger value of the reporting stage is qualitative: it organizes raw predictions into a clinician-readable summary with explicit support and uncertainty.
 
 \subsection{Qualitative Case Studies}
-Table~\ref{tab:cases} summarizes representative outcomes from the retained report set. These examples illustrate that the pipeline is strongest when a classifier signal and a detector signal are mutually supportive, and weakest when diffuse abnormalities are only partially captured by the detector.
+Representative outcomes from the retained report set illustrate where the workflow is most useful in practice.
 
 \begin{figure*}[t]
 \centering
@@ -190,33 +190,25 @@ Table~\ref{tab:cases} summarizes representative outcomes from the retained repor
 \label{fig:examplecase}
 \end{figure*}
 
-\begin{table*}[t]
-\caption{Representative Qualitative Cases from the Structured Reporting Workflow}
-\label{tab:cases}
-\centering
-\scriptsize
-\begin{tabular}{@{}
->{\raggedright\arraybackslash}p{0.11\textwidth}
->{\raggedright\arraybackslash}p{0.24\textwidth}
->{\raggedright\arraybackslash}p{0.19\textwidth}
->{\raggedright\arraybackslash}p{0.16\textwidth}
->{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
-\toprule
-Case ID & Ground-Truth Labels & Swin / Agentic Summary & YOLO Labels & Key Interpretation \\
-\midrule
-302b0d07\ldots & No finding & No finding & No finding & Clean normal case; all components agree and the report remains conservative. \\
-a3d5137d\ldots & Aortic enlargement, Cardiomegaly & Aortic enlargement, Cardiomegaly & Aortic enlargement, Cardiomegaly & Clean cardiomediastinal case; classifier and detector agree exactly with the radiologist labels, making the final report easy to support. \\
-127f6676\ldots & Aortic enlargement, Cardiomegaly, Lung Opacity, Nodule/Mass & Aortic enlargement, Cardiomegaly, Lung Opacity, Nodule/Mass & Aortic enlargement, Cardiomegaly, Nodule/Mass & Strong multi-finding case; YOLO localizes three of the four radiologist labels and misses only the more diffuse \textit{Lung Opacity} finding. \\
-\bottomrule
-\end{tabular}
-\end{table*}
+\noindent\textbf{Normal case (`302b0d07\ldots`).}
+Ground truth, Swin, YOLO, and the final report all indicated \textit{No finding}. This is the simplest workflow setting: the system produces a conservative normal summary without forcing unnecessary explanation.
+
+\medskip
+\noindent\textbf{Clean cardiomediastinal case (`a3d5137d\ldots`).}
+The radiologist labels were \textit{Aortic enlargement} and \textit{Cardiomegaly}. Both Swin and YOLO agreed exactly, making the final report straightforward to support with both image-level and localized evidence.
+
+\medskip
+\noindent\textbf{Multi-finding case (`127f6676\ldots`).}
+The radiologist labels were \textit{Aortic enlargement}, \textit{Cardiomegaly}, \textit{Lung Opacity}, and \textit{Nodule/Mass}. Swin recovered all four findings, while YOLO localized the three more focal patterns and missed the more diffuse \textit{Lung Opacity}. This is a representative example of the intended division of labor: the classifier captures the broader abnormal picture, while the detector contributes localization support where spatial evidence is most meaningful.
 
 \section{Discussion}
-The central result is that the project succeeds more as a workflow than as a claim of architectural novelty. Swin provides the strongest image-level performance, YOLO adds a useful but imperfect localization signal, and the agentic review layer makes the combined output easier to interpret. This is a meaningful outcome for a clinical AI project because operational clarity often matters more than a small gain on a single benchmark.
+The central result is that the project succeeds more as a workflow than as a claim of architectural novelty. Swin provides the strongest image-level performance, YOLO adds a useful but imperfect localization signal, and the agentic review layer makes the combined output easier to interpret. This is meaningful in a pragmatic clinical setting because a physician benefits less from an isolated probability vector than from a compact summary that states likely findings, shows where the local evidence is, and makes uncertainty explicit.
 
 The CNN baseline is also important to the scientific story. A 1.31M-parameter model trained from scratch reached 0.9314 macro AUC-ROC, which prevents the work from overstating the necessity of large transformers for this dataset. Conversely, the Swin result shows that stronger pretraining and architectural bias still matter at the top end of the benchmark.
 
 The localization branch provides complementary value rather than replacing classification. Its detection mAP remains modest, but the branch becomes more useful when framed as supporting evidence within a structured report. This is particularly true for localized or focal abnormalities. The detector is less reliable for diffuse abnormalities, which is consistent with both the metric behavior and the qualitative case studies.
+
+From a workflow perspective, this means the system is best viewed as a first-pass assistant. A clinician can use the classifier output to understand the likely abnormal pattern, use the detector overlay to inspect whether there is localized support, and then use the agentic summary as a structured starting point for review rather than a final autonomous report.
 
 \section{Limitations}
 Several limitations should be made explicit. First, this study uses a retained 15-label VinBigData subset rather than the full original taxonomy. Second, the agentic layer has not been clinically validated against radiologist-authored free-text reports. Third, the report-generation stage remains dependent on upstream model quality; it does not correct all classification or localization errors. Fourth, the current analysis emphasizes aggregate metrics and does not yet include calibration studies, external validation, reader studies, or subgroup analyses.
