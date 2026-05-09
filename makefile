@@ -1,4 +1,4 @@
-.PHONY: install data clean test test-yolo test-review prepare-yolo train-simple-cnn train-efficientnet train-resnet train-vit train-swin train-yolo infer-yolo eval-yolo eval-review agentic-report
+.PHONY: install data clean test test-yolo test-review prepare-yolo train-simple-cnn train-efficientnet train-resnet train-vit train-swin train-yolo infer-yolo eval-yolo eval-review agentic-report reproduce-compare presentation-reports
 
 install:
 	bash scripts/install.sh
@@ -51,3 +51,9 @@ eval-review:
 
 agentic-report:
 	python scripts/run_agentic_report.py --image data/test/002a34c58c5b758217ed1f584ccbcfe9.png
+
+reproduce-compare:
+	python scripts/reproduce.py compare --max-cases 300
+
+presentation-reports:
+	python scripts/reproduce.py presentation
