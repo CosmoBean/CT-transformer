@@ -707,18 +707,35 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    records = _load_case_records(
-        DEFAULT_CASES,
-        args.comparison_csv,
-        args.cache_dir,
-        args.raw_annotation_path,
-        args.image_metadata_path,
+    count = generate_comparison_reports(
+        comparison_csv=args.comparison_csv,
+        cache_dir=args.cache_dir,
+        raw_annotation_path=args.raw_annotation_path,
+        image_metadata_path=args.image_metadata_path,
+        output_dir=args.output_dir,
     )
-    args.output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Generated {count} comparison report examples in {args.output_dir}")
 
+
+def generate_comparison_reports(
+    comparison_csv: Path = Path("experiments/claude_review/eval_300/claude_vs_baselines_case_comparison.csv"),
+    cache_dir: Path = Path("experiments/claude_review/cache"),
+    raw_annotation_path: Path = Path("data/_downloads/train_raw.csv"),
+    image_metadata_path: Path = Path("data/_downloads/vinbig_png/train_meta.csv"),
+    output_dir: Path = Path("reports/comparision_reports"),
+    image_ids: list[tuple[str, str]] | None = None,
+) -> int:
+    records = _load_case_records(
+        image_ids or DEFAULT_CASES,
+        comparison_csv,
+        cache_dir,
+        raw_annotation_path,
+        image_metadata_path,
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
     for record in records:
-        _write_pdf(record, args.output_dir / f"{record.image_id}.pdf")
-    print(f"Generated {len(records)} comparison report examples in {args.output_dir}")
+        _write_pdf(record, output_dir / f"{record.image_id}.pdf")
+    return len(records)
 
 
 if __name__ == "__main__":

@@ -40,6 +40,13 @@ Generate one report:
 python main.py report --image data/test/<image>.png
 ```
 
+Generate the cached example PDFs:
+
+```bash
+python scripts/generate_reports.py --template example
+python scripts/generate_reports.py --template comparison
+```
+
 More detail is in [REPRODUCE.md](/project/community/sbandred/CT-transformer/REPRODUCE.md).
 
 ## Train from scratch

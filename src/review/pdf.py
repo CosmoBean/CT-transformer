@@ -4,6 +4,7 @@ ReportLab-based PDF export helpers for review bundles.
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 
 import matplotlib.image as mpimg
@@ -14,9 +15,11 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import HRFlowable, Image, ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepTogether
 
 
 BOX_COLORS = ["#D62828", "#1D3557", "#2A9D8F", "#F4A261", "#7B2CBF"]
+SAFETY_FOOTER = "AI-generated decision-support summary; human review required for clinical use."
 
 
 def _save_annotated_png(payload: dict, output_path: Path) -> None:
@@ -30,7 +33,6 @@ def _save_annotated_png(payload: dict, output_path: Path) -> None:
     fig.patch.set_facecolor("white")
     ax.imshow(image, cmap="gray")
     ax.axis("off")
-    ax.set_title("YOLO Support Overlay", loc="left", pad=8)
     for index, detection in enumerate(detections[:5]):
         color = BOX_COLORS[index % len(BOX_COLORS)]
         x1, y1, x2, y2 = [float(value) for value in detection["bbox_xyxy"]]
@@ -150,6 +152,22 @@ def _styles():
             spaceAfter=8,
         )
     )
+    styles.add(
+        ParagraphStyle(
+            name="SafetyBanner",
+            parent=styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=9.5,
+            leading=12.5,
+            textColor=colors.HexColor("#8A1C1C"),
+            backColor=colors.HexColor("#FDECEC"),
+            borderColor=colors.HexColor("#F5C2C7"),
+            borderWidth=0.5,
+            borderPadding=6,
+            borderRadius=2,
+            spaceAfter=10,
+        )
+    )
     return styles
 
 
@@ -170,6 +188,10 @@ def _scaled_image(path: Path, max_width: float, max_height: float) -> Image:
     image.drawWidth = width * scale
     image.drawHeight = height * scale
     return image
+
+
+def _section_block(title: str, content, styles) -> KeepTogether:
+    return KeepTogether([Paragraph(title, styles["SubHeading"]), content])
 
 
 def _image_table(original_image: Path, annotated_image: Path, styles) -> Table:
@@ -195,55 +217,58 @@ def _image_table(original_image: Path, annotated_image: Path, styles) -> Table:
     return table
 
 
+def _draw_footer(canvas, doc) -> None:
+    canvas.saveState()
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(colors.HexColor("#5B7083"))
+    canvas.drawString(doc.leftMargin, 0.45 * inch, SAFETY_FOOTER)
+    canvas.restoreState()
+
+
 def export_pdf(report_path: Path, output_path: Path) -> None:
     payload = json.loads(report_path.read_text())
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    annotated_png_path = output_path.with_name(f"{output_path.stem}_annotated.png")
-    _save_annotated_png(payload, annotated_png_path)
-
     styles = _styles()
     review = payload["review"]
     original_image_path = Path(payload["image_path"])
 
-    doc = SimpleDocTemplate(
-        str(output_path),
-        pagesize=letter,
-        leftMargin=0.75 * inch,
-        rightMargin=0.75 * inch,
-        topMargin=0.75 * inch,
-        bottomMargin=0.75 * inch,
-        title="AI Decision-Support Report",
-    )
+    with tempfile.TemporaryDirectory(prefix=f"{payload['image_id']}_report_") as tmp_dir:
+        annotated_png_path = Path(tmp_dir) / f"{output_path.stem}_annotated.png"
+        _save_annotated_png(payload, annotated_png_path)
 
-    story = [
-        Paragraph("AI Decision-Support Report", styles["ReportTitle"]),
-        Paragraph(
-            f"Case: {payload['image_id']}<br/>Source image: {original_image_path.name}",
-            styles["ReportSubtitle"],
-        ),
-        HRFlowable(width="100%", thickness=0.8, color=colors.HexColor("#D9E2EC")),
-        Spacer(1, 0.15 * inch),
-        Paragraph("Images", styles["SectionHeading"]),
-        _image_table(original_image_path, annotated_png_path, styles),
-        Spacer(1, 0.2 * inch),
-        Paragraph("Clinical Summary", styles["SectionHeading"]),
-        _bullet_list(_build_at_a_glance(payload), styles["Body"]),
-        Paragraph("Findings", styles["SubHeading"]),
-        Paragraph(review["findings_section"], styles["Body"]),
-        Paragraph("Impression", styles["SubHeading"]),
-        Paragraph(review["impression_section"], styles["Body"]),
-        Paragraph("Safety Note", styles["SubHeading"]),
-        Paragraph(review["safety_note"], styles["Body"]),
-        Spacer(1, 0.1 * inch),
-        Paragraph("Supporting Evidence", styles["SectionHeading"]),
-        Paragraph("YOLO Detections", styles["SubHeading"]),
-        _bullet_list(_format_yolo_legend(payload), styles["Body"]),
-        Paragraph("Supported Findings", styles["SubHeading"]),
-        _bullet_list(_format_probability_lines(payload, review["supported_findings"]), styles["Body"]),
-        Paragraph("Uncertain Findings", styles["SubHeading"]),
-        _bullet_list(_format_probability_lines(payload, review["uncertain_findings"]), styles["Body"]),
-        Paragraph("Top Swin Probabilities", styles["SubHeading"]),
-        _bullet_list(_format_top_probabilities(payload), styles["Body"]),
-    ]
+        doc = SimpleDocTemplate(
+            str(output_path),
+            pagesize=letter,
+            leftMargin=0.75 * inch,
+            rightMargin=0.75 * inch,
+            topMargin=0.75 * inch,
+            bottomMargin=0.75 * inch,
+            title="AI Decision-Support Report",
+        )
 
-    doc.build(story)
+        story = [
+            Paragraph("AI Decision-Support Report", styles["ReportTitle"]),
+            Paragraph(
+                f"Case: {payload['image_id']}<br/>Source image: {original_image_path.name}",
+                styles["ReportSubtitle"],
+            ),
+            Paragraph(SAFETY_FOOTER, styles["SafetyBanner"]),
+            HRFlowable(width="100%", thickness=0.8, color=colors.HexColor("#D9E2EC")),
+            Spacer(1, 0.15 * inch),
+            Paragraph("Images", styles["SectionHeading"]),
+            _image_table(original_image_path, annotated_png_path, styles),
+            Spacer(1, 0.2 * inch),
+            Paragraph("Clinical Summary", styles["SectionHeading"]),
+            _bullet_list(_build_at_a_glance(payload), styles["Body"]),
+            _section_block("Findings", Paragraph(review["findings_section"], styles["Body"]), styles),
+            _section_block("Impression", Paragraph(review["impression_section"], styles["Body"]), styles),
+            _section_block("Safety Note", Paragraph(review["safety_note"], styles["Body"]), styles),
+            Spacer(1, 0.1 * inch),
+            Paragraph("Supporting Evidence", styles["SectionHeading"]),
+            _section_block("YOLO Detections", _bullet_list(_format_yolo_legend(payload), styles["Body"]), styles),
+            _section_block("Supported Findings", _bullet_list(_format_probability_lines(payload, review["supported_findings"]), styles["Body"]), styles),
+            _section_block("Uncertain Findings", _bullet_list(_format_probability_lines(payload, review["uncertain_findings"]), styles["Body"]), styles),
+            _section_block("Top Swin Probabilities", _bullet_list(_format_top_probabilities(payload), styles["Body"]), styles),
+        ]
+
+        doc.build(story, onFirstPage=_draw_footer, onLaterPages=_draw_footer)

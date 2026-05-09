@@ -82,7 +82,6 @@ def run_review_case(
             "review_json": str(review_json_path),
             "report_markdown": str(report_md_path),
             "report_pdf": str(case_dir / "report.pdf"),
-            "annotated_png": str(case_dir / "report_annotated.png"),
         },
     }
 
