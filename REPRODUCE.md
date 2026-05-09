@@ -30,12 +30,12 @@ cp .env.example .env
 ## 2. Download prepared assets
 
 Assumptions:
-- the Hugging Face dataset repo contains the prepared `data/` contents
+- the processed dataset is published at [sbandred/vinbig-cxr-processed](https://huggingface.co/datasets/sbandred/vinbig-cxr-processed/tree/main) and contains the prepared `data/` contents
 - the Hugging Face artifacts repo contains `experiments/` and checkpoint files laid out for this repo
 
 ```bash
 python main.py download \
-  --dataset-repo <org_or_user/vinbigdata-prepared> \
+  --dataset-repo sbandred/vinbig-cxr-processed \
   --artifacts-repo <org_or_user/ct-transformer-artifacts>
 ```
 
@@ -43,7 +43,7 @@ If you need to override the default public download flow, you can still pass a H
 
 ```bash
 python main.py download \
-  --dataset-repo <org_or_user/vinbigdata-prepared> \
+  --dataset-repo sbandred/vinbig-cxr-processed \
   --artifacts-repo <org_or_user/ct-transformer-artifacts> \
   --hf-token <your_hf_token>
 ```
