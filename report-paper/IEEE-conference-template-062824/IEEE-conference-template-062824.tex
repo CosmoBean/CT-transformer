@@ -267,6 +267,8 @@ In moderately conflicted cases, the classifier and detector agree on the major f
 \noindent\textbf{High-conflict scenario.}
 In the hardest cases, multiple findings are present and the evidence channels diverge substantially, for example when the classifier captures diffuse disease patterns that the detector cannot localize cleanly, or when one branch overcalls a focal lesion. The reporting layer is most valuable in these high-conflict settings because it surfaces the disagreement explicitly instead of hiding it inside an aggregate metric. The final report can then distinguish findings with dual support from classifier-only or detector-only claims, which is precisely the behavior needed for a first-pass clinical review tool.
 
+Five representative example reports covering all three conflict regimes, together with their ground-truth comparison outputs, are included in the \texttt{reports/example\_reports/} and \texttt{reports/comparision\_reports/} directories of the source code submission for direct reference.
+
 \clearpage
 \begin{figure*}[!t]
 \centering
