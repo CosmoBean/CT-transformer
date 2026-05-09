@@ -39,13 +39,7 @@ python main.py download \
   --dataset-repo sbandred/vinbig-cxr-processed
 ```
 
-### 2. Rerun comparisons without retraining
-
-This reuses the downloaded checkpoints. If cached review JSON files are present in the artifacts repo, the review comparison reruns without calling the model API.
-
-```bash
-python main.py compare --max-cases 300
-```
+### 2. Reproduce the paper metrics
 
 Reproduce the paper model metrics directly from the saved checkpoints:
 
@@ -57,6 +51,14 @@ This writes classifier macro AUC-ROC metrics and YOLO `mAP@0.5` under:
 
 ```text
 experiments/paper_metrics/
+```
+
+### 3. Rerun comparisons without retraining
+
+This reuses the downloaded checkpoints. If cached review JSON files are present in the artifacts repo, the review comparison reruns without calling the model API.
+
+```bash
+python main.py compare --max-cases 300
 ```
 
 If cached review outputs are missing and you want to recompute them:
@@ -73,7 +75,7 @@ Outputs land under:
 experiments/repro_outputs/
 ```
 
-### 3. Generate one report
+### 4. Generate one report
 
 Generate one agentic report directly from an image:
 
@@ -95,7 +97,7 @@ Outputs land under:
 experiments/agentic_reports/<image_id>/
 ```
 
-### 4. Generate the report templates
+### 5. Generate the report templates
 
 These scripts regenerate the two PDF templates used in this repo from cached review outputs:
 
@@ -122,7 +124,7 @@ Best checkpoints for the paper tables are indexed under:
 model_checkpoints/
 ```
 
-### 5. API-key-only regeneration
+### 6. API-key-only regeneration
 
 The PDF templates are reproducible from cached artifacts today.
 
