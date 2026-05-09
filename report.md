@@ -29,7 +29,7 @@ The strongest model was consistently **Swin**, which gave the best macro AUC-ROC
 | `vit_base` | transformer | 86.84M | 10 epochs | 0.8417 |
 | `swin_base_patch4_window7_224` | hierarchical transformer | 87.28M | 10 epochs | 0.9618 |
 
-These reproduced runs were executed on `oc4` across 4 H100 GPUs. The Swin result remained the strongest overall classifier. The CNN baseline did not match Swin, but it clearly outperformed weaker baselines like the non-pretrained ViT path in this setup.
+These reproduced runs were executed across 4 H100 GPUs. The Swin result remained the strongest overall classifier. The CNN baseline did not match Swin, but it clearly outperformed weaker baselines like the non-pretrained ViT path in this setup.
 
 Third, we added a **localization branch** using **YOLOv8m**. This was motivated by the fact that chest X-ray analysis benefits not only from class prediction but also from spatial evidence. YOLO was trained from the raw VinBigData box annotations and evaluated in two ways:
 - as a **detector**, using `mAP@0.5` and `mAP@0.5:0.95`
