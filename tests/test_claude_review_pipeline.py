@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import json
 import sys
-import tempfile
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent

@@ -11,13 +11,13 @@ clean:
 	find src scripts -type d -name '__pycache__' -empty -delete
 
 test:
-	python scripts/test_setup.py
+	python tests/test_setup.py
 
 test-yolo:
-	python scripts/test_yolo_pipeline.py
+	python tests/test_yolo_pipeline.py
 
 test-review:
-	python scripts/test_claude_review_pipeline.py
+	python tests/test_claude_review_pipeline.py
 
 prepare-yolo:
 	python scripts/ct_transformer.py prepare-yolo
