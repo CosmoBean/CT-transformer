@@ -47,22 +47,6 @@ python main.py download \
   --artifacts-repo <org_or_user/ct-transformer-artifacts>
 ```
 
-If you need to override the default public download flow, you can still pass a Hugging Face token directly:
-
-```bash
-python main.py download \
-  --dataset-repo sbandred/vinbig-cxr-processed \
-  --hf-token <your_hf_token>
-```
-
-Or for artifacts only:
-
-```bash
-python main.py download \
-  --artifacts-repo <org_or_user/ct-transformer-artifacts> \
-  --hf-token <your_hf_token>
-```
-
 ### 2. Rerun comparisons without retraining
 
 This reuses the downloaded checkpoints. If cached review JSON files are present in the artifacts repo, the review comparison reruns without calling the model API.

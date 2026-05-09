@@ -21,7 +21,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-If you want credentials to be picked up automatically, copy the template and fill it in:
+If you want the API key to be picked up automatically, copy the template and fill it in:
 
 ```bash
 cp .env.example .env
@@ -37,15 +37,6 @@ Assumptions:
 python main.py download \
   --dataset-repo sbandred/vinbig-cxr-processed \
   --artifacts-repo <org_or_user/ct-transformer-artifacts>
-```
-
-If you need to override the default public download flow, you can still pass a Hugging Face token directly:
-
-```bash
-python main.py download \
-  --dataset-repo sbandred/vinbig-cxr-processed \
-  --artifacts-repo <org_or_user/ct-transformer-artifacts> \
-  --hf-token <your_hf_token>
 ```
 
 ## 3. Rerun comparisons without retraining
