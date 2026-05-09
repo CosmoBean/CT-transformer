@@ -47,6 +47,18 @@ This reuses the downloaded checkpoints. If cached review JSON files are present 
 python main.py compare --max-cases 300
 ```
 
+Reproduce the paper model metrics directly from the saved checkpoints:
+
+```bash
+python main.py reproduce-paper-metrics
+```
+
+This writes classifier macro AUC-ROC metrics and YOLO `mAP@0.5` under:
+
+```text
+experiments/paper_metrics/
+```
+
 If cached review outputs are missing and you want to recompute them:
 
 ```bash

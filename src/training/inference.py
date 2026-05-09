@@ -40,7 +40,7 @@ def load_checkpoint_state_dict(
     return state_dict
 
 
-def predict_classifier_dataset(
+def predict_classifier_outputs(
     config: dict,
     checkpoint_path: str | Path,
     split: str,
@@ -48,7 +48,7 @@ def predict_classifier_dataset(
     device_name: str | torch.device | None = None,
     batch_size: int | None = None,
     num_workers: int = 0,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     device = _resolve_device(device_name)
     data_dir = Path(config["data"]["data_dir"])
     csv_path = data_dir / config["data"].get("train_csv", "train.csv")
@@ -76,19 +76,57 @@ def predict_classifier_dataset(
     model.load_state_dict(load_checkpoint_state_dict(checkpoint_path, device))
     model.eval()
 
-    rows = []
+    probability_rows = []
+    prediction_rows = []
     with torch.no_grad():
         for batch in loader:
             probabilities = torch.sigmoid(model(batch["image"].to(device))).cpu().numpy()
             predictions = (probabilities >= threshold).astype(int)
-            for image_id, predicted_labels in zip(batch["image_id"], predictions):
-                rows.append(
+            for image_id, probability_values, predicted_values in zip(
+                batch["image_id"],
+                probabilities,
+                predictions,
+            ):
+                probability_rows.append(
+                    {
+                        "image_id": image_id,
+                        **{
+                            class_name: float(value)
+                            for class_name, value in zip(CLASS_NAMES, probability_values)
+                        },
+                    }
+                )
+                prediction_rows.append(
                     {
                         "image_id": image_id,
                         **{
                             class_name: int(value)
-                            for class_name, value in zip(CLASS_NAMES, predicted_labels)
+                            for class_name, value in zip(CLASS_NAMES, predicted_values)
                         },
                     }
                 )
-    return pd.DataFrame(rows).set_index("image_id")
+    return (
+        pd.DataFrame(probability_rows).set_index("image_id"),
+        pd.DataFrame(prediction_rows).set_index("image_id"),
+    )
+
+
+def predict_classifier_dataset(
+    config: dict,
+    checkpoint_path: str | Path,
+    split: str,
+    threshold: float = 0.5,
+    device_name: str | torch.device | None = None,
+    batch_size: int | None = None,
+    num_workers: int = 0,
+) -> pd.DataFrame:
+    _, prediction_df = predict_classifier_outputs(
+        config=config,
+        checkpoint_path=checkpoint_path,
+        split=split,
+        threshold=threshold,
+        device_name=device_name,
+        batch_size=batch_size,
+        num_workers=num_workers,
+    )
+    return prediction_df

@@ -12,7 +12,7 @@ from .classification import (
     train_classifier,
     train_classifier_from_args,
 )
-from .inference import load_checkpoint_state_dict, predict_classifier_dataset
+from .inference import load_checkpoint_state_dict, predict_classifier_dataset, predict_classifier_outputs
 
 __all__ = [
     'Trainer',
@@ -27,4 +27,5 @@ __all__ = [
     'train_classifier_from_args',
     'load_checkpoint_state_dict',
     'predict_classifier_dataset',
+    'predict_classifier_outputs',
 ]

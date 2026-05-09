@@ -16,7 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.data import prepare_vinbigdata_dataset, prepare_yolo_dataset
 from src.detection import evaluate_yolo_run, infer_yolo_image, train_yolo_run
-from src.reproduction import compare_runs, download_assets
+from src.reproduction import compare_runs, download_assets, reproduce_paper_metrics
 from src.review import evaluate_review_run, run_review_case
 from src.training import train_classifier_from_args
 from src.utils import load_config, load_local_env
@@ -166,6 +166,22 @@ def cmd_compare(args: argparse.Namespace) -> None:
     print(json.dumps(payload, indent=2))
 
 
+def cmd_reproduce_paper_metrics(args: argparse.Namespace) -> None:
+    payload = reproduce_paper_metrics(
+        output_dir=args.output_dir,
+        split=args.split,
+        classifier_config_path=args.classifier_config,
+        yolo_config_path=args.yolo_config,
+        classifier_keys=args.classifier,
+        classifier_threshold=args.classifier_threshold,
+        classifier_device=args.classifier_device,
+        classifier_batch_size=args.classifier_batch_size,
+        skip_yolo=args.skip_yolo,
+        yolo_weights_path=args.yolo_weights,
+    )
+    print(json.dumps(payload, indent=2))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Unified CT-Transformer CLI.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -259,6 +275,24 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("--skip-review", action="store_true")
     compare_parser.add_argument("--force-refresh", action="store_true")
     compare_parser.set_defaults(func=cmd_compare)
+
+    paper_parser = subparsers.add_parser("reproduce-paper-metrics", help="Reproduce classifier AUC-ROC and YOLO mAP@0.5 from saved checkpoints.")
+    paper_parser.add_argument("--output-dir", default="experiments/paper_metrics")
+    paper_parser.add_argument("--split", default="val", choices=["train", "val"])
+    paper_parser.add_argument("--classifier-config", default="configs/default_config.yaml")
+    paper_parser.add_argument("--yolo-config", default="configs/yolo_v8_detection.yaml")
+    paper_parser.add_argument(
+        "--classifier",
+        action="append",
+        choices=["simple_cnn", "efficientnet_b3", "resnet50", "vit_base", "swin_base"],
+        help="Limit reproduction to one or more classifiers.",
+    )
+    paper_parser.add_argument("--classifier-threshold", type=float, default=0.5)
+    paper_parser.add_argument("--classifier-device", default="auto")
+    paper_parser.add_argument("--classifier-batch-size", type=int, default=None)
+    paper_parser.add_argument("--skip-yolo", action="store_true")
+    paper_parser.add_argument("--yolo-weights", default="model_checkpoints/paper_yolo_best.pt")
+    paper_parser.set_defaults(func=cmd_reproduce_paper_metrics)
 
     return parser
 
