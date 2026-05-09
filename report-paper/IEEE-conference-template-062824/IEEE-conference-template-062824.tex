@@ -186,11 +186,26 @@ swin\_base & 0.7573 & 0.9583 & 0.9618 \\
 The best YOLOv8m run reached 0.3666 mAP@0.5; a larger YOLOv8l variant did not materially improve this. This result matches the task: VinBigData bounding boxes include diffuse abnormalities like lung opacity and ILD, which do not present the tight spatial boundaries object detectors handle best. Detection mAP alone therefore does not capture the detector's full value in the pipeline. YOLO provides a second, spatially grounded evidence channel. When the classifier flags cardiomegaly and the detector draws a bounding box over the cardiac silhouette, the reporting layer states that the finding has both image-level and localized support. When only one source provides evidence, the report marks the finding as uncertain. This agreement-disagreement signal is the core way localization strengthens clinical explainability.
 
 \subsection{End-to-End Workflow Evaluation}
-Table~\ref{tab:agentic} evaluates the complete pipeline on a 300-case review slice. The integrated workflow achieves 0.750 exact-match accuracy and 0.9560 macro accuracy, exceeding both Swin alone and YOLO labels on these metrics. On macro AUC-ROC it reaches 0.7063, below Swin's 0.7481 and above YOLO labels at 0.6374. The reporting layer therefore strengthens end-to-end workflow performance while preserving the classifier hierarchy on ranking quality.
+Tables~\ref{tab:agentic_focus} and \ref{tab:agentic} evaluate the complete pipeline on a 300-case review slice. The integrated workflow achieves 0.750 exact-match accuracy and 0.9560 macro accuracy, exceeding both Swin alone and YOLO labels on these metrics. On macro AUC-ROC it reaches 0.7063, below Swin's 0.7481 and above YOLO labels at 0.6374. The reporting layer therefore strengthens end-to-end workflow performance while preserving the classifier hierarchy on ranking quality.
 
 The case-level breakdown is decisive. The agentic layer improved over Swin on 16 cases and over YOLO on 33 cases, while underperforming Swin on 12 cases and YOLO on 9 cases. The gains occurred when one model was uncertain and the other provided supporting evidence, allowing the reporting layer to make a stronger final call. The misses occurred when the layer inherited a confident but incorrect upstream prediction. This asymmetry defines the fusion-based reporting approach: it strengthens weak signals and organizes evidence effectively, while upstream model quality still sets the performance ceiling.
 
 The reporting stage delivers its strongest contribution at the workflow level. Instead of a single label vector, the clinician receives a structured summary that states which findings are supported by both models, which are uncertain, and where the two sources disagree. That information is invisible in a raw probability output. Comparisons against alternative agentic prompting strategies, including MedGemma-style medical LLM prompting, reinforced the same outcome: the grounded pipeline produced the most auditable outputs because every report section is tied back to explicit classifier scores, detector boxes, and agreement logic. Medically specialized language models can phrase findings naturally, but the structured evidence contract in this pipeline makes the output far easier to audit as a decision-support component.
+
+\begin{table}[t]
+\caption{Matched 300-Case Slice: Classifier Alone vs.\ Full Pipeline}
+\label{tab:agentic_focus}
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+System & Exact-Match & Macro Acc & Macro AUC \\
+\midrule
+Swin alone & 0.7400 & 0.9542 & 0.7481 \\
+Full pipeline & 0.7500 & 0.9560 & 0.7063 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{table}[t]
 \caption{300-Case Comparison of the End-to-End Decision-Support Workflow}
