@@ -168,7 +168,7 @@ swin\_base & 87.28M & 10 & 0.9665 \\
 The best YOLOv8m run reached 0.3666 mAP@0.5; a larger YOLOv8l variant did not materially improve this. The modest detection mAP is expected given the difficulty of the task because VinBigData bounding boxes include diffuse abnormalities like lung opacity and ILD, which lack the well-defined spatial boundaries that object detectors are designed for. However, detection mAP alone understates the detector's value in the pipeline. YOLO is not meant to compete with Swin on classification. Its role is to provide a second, spatially grounded evidence channel. When the classifier flags cardiomegaly and the detector draws a bounding box over the cardiac silhouette, the reporting layer can state that the finding has both image-level and localized support. When only one source provides evidence, the report marks the finding as uncertain. This agreement-disagreement signal is the main way localization contributes to clinical explainability.
 
 \subsection{End-to-End Workflow Evaluation}
-Table~\ref{tab:agentic} evaluates the complete pipeline on a 300-case review slice. The integrated workflow achieves 0.750 exact-match accuracy and 0.9560 macro accuracy, slightly exceeding both Swin alone and YOLO-derived labels on these metrics while remaining below Swin on macro F1. This pattern is consistent with the reporting layer's intended role: it is an explainability and communication module, not a new visual backbone that should be expected to improve raw F1.
+Table~\ref{tab:agentic} evaluates the complete pipeline on a 300-case review slice. The integrated workflow achieves 0.750 exact-match accuracy and 0.9560 macro accuracy, slightly exceeding both Swin alone and YOLO-derived labels on these metrics. On macro AUC-ROC, however, it reaches 0.7063, which remains below Swin's 0.7481 while improving over YOLO-derived labels at 0.6374. This pattern is consistent with the reporting layer's intended role: it is an explainability and communication module, not a new visual backbone that should be expected to outperform the strongest classifier on ranking quality.
 
 The more informative result is the case-level breakdown. The agentic layer improved over Swin on 16 cases and over YOLO on 33 cases, while underperforming Swin on 12 cases and YOLO on 9 cases. The improvements typically occurred when one model was uncertain and the other provided supporting evidence, allowing the reporting layer to make a more informed final call. The degradations occurred when the layer inherited a confident but incorrect prediction from one upstream model and could not override it from the other. This asymmetry highlights both the value and the limitation of a fusion-based reporting approach: it can strengthen weak signals but cannot fully compensate for high-confidence upstream errors.
 
@@ -181,11 +181,11 @@ The stronger contribution of the reporting stage is qualitative rather than quan
 \footnotesize
 \begin{tabular}{lccc}
 \toprule
-System & Exact-Match & Macro Acc & Macro F1 \\
+System & Exact-Match & Macro Acc & Macro AUC \\
 \midrule
-Swin classifier & 0.7400 & 0.9542 & 0.5671 \\
-YOLO-derived labels & 0.7300 & 0.9464 & 0.3286 \\
-Agentic AI workflow & 0.7500 & 0.9560 & 0.4855 \\
+Swin classifier & 0.7400 & 0.9542 & 0.7481 \\
+YOLO labels & 0.7300 & 0.9464 & 0.6374 \\
+Agentic workflow & 0.7500 & 0.9560 & 0.7063 \\
 \bottomrule
 \end{tabular}
 \end{table}

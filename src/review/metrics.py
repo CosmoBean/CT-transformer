@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import confusion_matrix, f1_score
+from sklearn.metrics import confusion_matrix, f1_score, roc_auc_score
 
 from src.data.dataset import CLASS_NAMES
 
@@ -22,6 +22,7 @@ def evaluate_multilabel_predictions(
         "samples": int(len(image_ids)),
         "exact_match_accuracy": float(np.all(y_true == y_pred, axis=1).mean()),
         "macro_accuracy": float(per_class_accuracy.mean()),
+        "macro_auc_roc": float(roc_auc_score(y_true, y_pred, average="macro")),
         "macro_f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
         "per_class_accuracy": {
             class_name: float(acc)
