@@ -11,6 +11,10 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
+from src.utils.env import load_local_env
+
+load_local_env()
+
 
 class GatewayError(RuntimeError):
     """Raised when the CMU gateway request fails."""

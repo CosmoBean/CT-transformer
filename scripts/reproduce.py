@@ -21,9 +21,15 @@ from pathlib import Path
 
 from huggingface_hub import snapshot_download
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HF_DOWNLOAD_ROOT = REPO_ROOT / ".hf_downloads"
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.utils import load_local_env
+
+load_local_env(REPO_ROOT / ".env")
 
 
 def _run(cmd: list[str], env: dict[str, str] | None = None) -> None:

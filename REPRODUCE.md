@@ -19,6 +19,12 @@ bash scripts/install.sh
 source .venv/bin/activate
 ```
 
+If you want credentials to be picked up automatically, copy the template and fill it in:
+
+```bash
+cp .env.example .env
+```
+
 ## 2. Download prepared assets
 
 Assumptions:
@@ -31,7 +37,7 @@ python scripts/reproduce.py download \
   --artifacts-repo <org_or_user/ct-transformer-artifacts>
 ```
 
-If either repo is private:
+If either repo is private, either fill `HF_TOKEN` in `.env` or pass it directly:
 
 ```bash
 python scripts/reproduce.py download \
