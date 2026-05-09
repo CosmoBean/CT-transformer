@@ -277,7 +277,6 @@ Five representative example reports covering all three conflict regimes, togethe
 \caption{Ground-truth-versus-YOLO comparison examples. In each row, the left panel shows merged radiologist ground-truth boxes and the right panel shows YOLO predictions with visible class labels. Top row: a single-label case where both the ground truth and YOLO indicate \textit{Aortic enlargement}. Bottom row: a multi-label case with radiologist labels \textit{Aortic enlargement}, \textit{Cardiomegaly}, \textit{Lung Opacity}, and \textit{Nodule/Mass}; YOLO recovers the first three localizable patterns except the more diffuse \textit{Lung Opacity} finding.}
 \label{fig:examplecase}
 \end{figure*}
-\FloatBarrier
 
 \section{Discussion}
 The principal finding of this work is that the value of the pipeline lies in its workflow design, not in any single component alone. A radiologist reviewing a chest X-ray identifies findings, locates supporting evidence, weighs certainty, and composes an impression. The pipeline mirrors that cognitive structure, and its clinical utility comes from making each step explicit and auditable.
