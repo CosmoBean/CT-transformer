@@ -226,7 +226,8 @@ The reporting stage delivers its strongest contribution at the workflow level. I
 \caption{Matched 300-Case Slice: Classifier Alone vs.\ Full Pipeline}
 \label{tab:agentic_focus}
 \centering
-\footnotesize
+\scriptsize
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccc}
 \toprule
 System & Exact-Match & Macro Acc & Macro AUC-ROC \\
@@ -241,7 +242,8 @@ Full pipeline & 0.7500 & 0.9560 & 0.7063 \\
 \caption{300-Case Comparison of the End-to-End Decision-Support Workflow}
 \label{tab:agentic}
 \centering
-\footnotesize
+\scriptsize
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccc}
 \toprule
 System & Exact-Match & Macro Acc & Macro AUC-ROC \\
@@ -275,6 +277,7 @@ Five representative example reports covering all three conflict regimes, togethe
 \caption{Ground-truth-versus-YOLO comparison examples. In each row, the left panel shows merged radiologist ground-truth boxes and the right panel shows YOLO predictions with visible class labels. Top row: a single-label case where both the ground truth and YOLO indicate \textit{Aortic enlargement}. Bottom row: a multi-label case with radiologist labels \textit{Aortic enlargement}, \textit{Cardiomegaly}, \textit{Lung Opacity}, and \textit{Nodule/Mass}; YOLO recovers the first three localizable patterns except the more diffuse \textit{Lung Opacity} finding.}
 \label{fig:examplecase}
 \end{figure*}
+\FloatBarrier
 
 \section{Discussion}
 The principal finding of this work is that the value of the pipeline lies in its workflow design, not in any single component alone. A radiologist reviewing a chest X-ray identifies findings, locates supporting evidence, weighs certainty, and composes an impression. The pipeline mirrors that cognitive structure, and its clinical utility comes from making each step explicit and auditable.
