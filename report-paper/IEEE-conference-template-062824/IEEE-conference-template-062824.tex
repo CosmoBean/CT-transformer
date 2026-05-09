@@ -10,6 +10,7 @@
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{url}
+\usepackage{placeins}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -251,13 +252,6 @@ Agentic workflow & 0.7500 & 0.9560 & 0.7063 \\
 \subsection{Qualitative Reporting Scenarios}
 Representative outcomes from the retained report set illustrate where the workflow is most useful in practice.
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/example_report_case.png}
-\caption{Ground-truth-versus-YOLO comparison examples. In each row, the left panel shows merged radiologist ground-truth boxes and the right panel shows YOLO predictions. Top row: a single-label case where both the ground truth and YOLO indicate \textit{Aortic enlargement}. Bottom row: a multi-label case with radiologist labels \textit{Aortic enlargement}, \textit{Cardiomegaly}, \textit{Lung Opacity}, and \textit{Nodule/Mass}; YOLO recovers the first three localizable patterns except the more diffuse \textit{Lung Opacity} finding.}
-\label{fig:examplecase}
-\end{figure*}
-
 \noindent\textbf{Vanilla scenario (minimal conflict).}
 In the simplest workflow setting, the classifier, detector, and ground truth all align on either \textit{No finding} or a small number of focal abnormalities. In these cases the pipeline produces a conservative summary without forcing the clinician to sift through 15 individual probability scores. This is the simplest but most common workflow scenario, and handling it efficiently matters because low-conflict cases dominate clinical volume.
 
@@ -287,6 +281,14 @@ These limitations define a clear path forward. The system already provides an ex
 
 \section{Conclusion}
 This work presents a multi-stage chest X-ray decision-support pipeline that closes the gap between model output and clinical usability. The pipeline mirrors the radiologist's workflow: classification, localization, and structured reporting, while keeping each stage modular and auditable. Transfer-learned classifiers, especially Swin, provide the strongest image-level performance; a lightweight CNN keeps the same workflow viable under tighter compute constraints; YOLO contributes spatial evidence that strengthens explainability for focal findings; and the agentic reporting layer converts raw model outputs into a structured summary that a clinician can review and act on. The result is a practical, evidence-grounded clinical assistant that replaces opaque probability outputs with a structured foundation for review.
+
+\FloatBarrier
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth]{figures/example_report_case.png}
+\caption{Ground-truth-versus-YOLO comparison examples. In each row, the left panel shows merged radiologist ground-truth boxes and the right panel shows YOLO predictions with visible class labels. Top row: a single-label case where both the ground truth and YOLO indicate \textit{Aortic enlargement}. Bottom row: a multi-label case with radiologist labels \textit{Aortic enlargement}, \textit{Cardiomegaly}, \textit{Lung Opacity}, and \textit{Nodule/Mass}; YOLO recovers the first three localizable patterns except the more diffuse \textit{Lung Opacity} finding.}
+\label{fig:examplecase}
+\end{figure*}
 
 \section*{Acknowledgment}
 The author thanks the VinBigData dataset providers for releasing the chest X-ray data through an open Kaggle challenge. The author also thanks Dr.\ Newell Washburn for course guidance and Tushar Nayak for reviews and feedback on the project. Compute resources were provided by the Pittsburgh Supercomputing Center.
