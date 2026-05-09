@@ -3,7 +3,7 @@
 This repo now has one source-code-first entrypoint for the final workflow:
 
 ```bash
-python scripts/ct_transformer.py ...
+python main.py ...
 ```
 
 The goal is simple:
@@ -32,7 +32,7 @@ Assumptions:
 - the Hugging Face artifacts repo contains `experiments/` and checkpoint files laid out for this repo
 
 ```bash
-python scripts/ct_transformer.py download \
+python main.py download \
   --dataset-repo <org_or_user/vinbigdata-prepared> \
   --artifacts-repo <org_or_user/ct-transformer-artifacts>
 ```
@@ -40,7 +40,7 @@ python scripts/ct_transformer.py download \
 If either repo is private, either fill `HF_TOKEN` in `.env` or pass it directly:
 
 ```bash
-python scripts/ct_transformer.py download \
+python main.py download \
   --dataset-repo <org_or_user/vinbigdata-prepared> \
   --artifacts-repo <org_or_user/ct-transformer-artifacts> \
   --hf-token <your_hf_token>
@@ -51,13 +51,13 @@ python scripts/ct_transformer.py download \
 This reuses the downloaded checkpoints. If cached review JSON files are also present in the artifacts repo, the review comparison can rerun without hitting the model API.
 
 ```bash
-python scripts/ct_transformer.py compare --max-cases 300
+python main.py compare --max-cases 300
 ```
 
 If cached review outputs are missing and you want to recompute them:
 
 ```bash
-python scripts/ct_transformer.py compare \
+python main.py compare \
   --max-cases 300 \
   --api-key <your_gateway_api_key>
 ```
@@ -71,7 +71,7 @@ experiments/repro_outputs/
 ## 4. Generate one report from an API key
 
 ```bash
-python scripts/ct_transformer.py report \
+python main.py report \
   --image data/test/<image_id>.png \
   --api-key <your_gateway_api_key>
 ```

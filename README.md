@@ -21,7 +21,7 @@ Fill `.env` only if you need private Hugging Face access or agentic review gener
 Download the prepared dataset and saved artifacts:
 
 ```bash
-python scripts/ct_transformer.py download \
+python main.py download \
   --dataset-repo <hf_dataset_repo> \
   --artifacts-repo <hf_artifacts_repo>
 ```
@@ -29,13 +29,13 @@ python scripts/ct_transformer.py download \
 Rerun the saved comparisons:
 
 ```bash
-python scripts/ct_transformer.py compare --max-cases 300
+python main.py compare --max-cases 300
 ```
 
 Generate one report:
 
 ```bash
-python scripts/ct_transformer.py report --image data/test/<image>.png
+python main.py report --image data/test/<image>.png
 ```
 
 More detail is in [REPRODUCE.md](/project/community/sbandred/CT-transformer/REPRODUCE.md).
@@ -45,27 +45,29 @@ More detail is in [REPRODUCE.md](/project/community/sbandred/CT-transformer/REPR
 Classification:
 
 ```bash
-python scripts/ct_transformer.py train-classifier --model swin_base_patch4_window7_224 --epochs 10
+python main.py train-classifier --model swin_base_patch4_window7_224 --epochs 10
 ```
 
 YOLO:
 
 ```bash
-python scripts/ct_transformer.py train-yolo --weights yolov8m.pt
+python main.py train-yolo --weights yolov8m.pt
 ```
 
 ## Main commands
 
 ```bash
-python scripts/ct_transformer.py --help
+python main.py --help
 ```
 
 ## Project layout
 
 ```text
 configs/   runtime configuration
-scripts/   main CLI and test helpers
+main.py    primary CLI
+scripts/   install and auxiliary utilities
 src/       library code
+tests/     test suite
 data/      prepared dataset
 experiments/ checkpoints, reports, cached outputs
 ```

@@ -27,4 +27,4 @@ uv pip install --python "${VENV_DIR}/bin/python" -e .
 echo
 echo "Environment ready."
 echo "Activate with: source .venv/bin/activate"
-echo "Download data with: .venv/bin/python scripts/ct_transformer.py setup-data"
+echo "Download data with: .venv/bin/python main.py setup-data"
