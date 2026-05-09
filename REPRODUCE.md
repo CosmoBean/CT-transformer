@@ -39,7 +39,7 @@ python main.py download \
   --artifacts-repo <org_or_user/ct-transformer-artifacts>
 ```
 
-If either repo is private, either fill `HF_TOKEN` in `.env` or pass it directly:
+If you need to override the default public download flow, you can still pass a Hugging Face token directly:
 
 ```bash
 python main.py download \
