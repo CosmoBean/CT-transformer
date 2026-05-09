@@ -31,12 +31,10 @@ cp .env.example .env
 
 Assumptions:
 - the processed dataset is published at [sbandred/vinbig-cxr-processed](https://huggingface.co/datasets/sbandred/vinbig-cxr-processed/tree/main) and contains the prepared `data/` contents
-- the Hugging Face artifacts repo contains `experiments/` and checkpoint files laid out for this repo
 
 ```bash
 python main.py download \
-  --dataset-repo sbandred/vinbig-cxr-processed \
-  --artifacts-repo <org_or_user/ct-transformer-artifacts>
+  --dataset-repo sbandred/vinbig-cxr-processed
 ```
 
 ## 3. Rerun comparisons without retraining

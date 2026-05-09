@@ -31,20 +31,12 @@ This is the fastest way to reproduce the final results.
 
 Assumptions:
 - the processed dataset is published at [sbandred/vinbig-cxr-processed](https://huggingface.co/datasets/sbandred/vinbig-cxr-processed/tree/main) and contains the prepared `data/` contents
-- the Hugging Face artifacts repo contains `experiments/` and checkpoint files laid out for this repo
 
 Download the processed dataset:
 
 ```bash
 python main.py download \
   --dataset-repo sbandred/vinbig-cxr-processed
-```
-
-If you also have a separate artifacts repo for checkpoints and cached outputs, download it with:
-
-```bash
-python main.py download \
-  --artifacts-repo <org_or_user/ct-transformer-artifacts>
 ```
 
 ### 2. Rerun comparisons without retraining
