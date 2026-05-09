@@ -15,7 +15,6 @@ from src.evaluation import evaluate_multilabel_predictions, format_case_table, p
 from src.review.inference import SwinInferenceEngine, YoloInferenceEngine
 from src.review.metrics import build_case_buckets
 from src.review.orchestrator import ReviewOrchestrator
-from src.review.pdf import export_pdf
 from src.utils import load_config
 
 
@@ -66,6 +65,8 @@ def run_review_case(
     report_md_path = case_dir / "report.md"
     review_json_path.write_text(json.dumps(result, indent=2))
     report_md_path.write_text(result["report_text"])
+    from src.review.pdf import export_pdf
+
     export_pdf(review_json_path, case_dir / "report.pdf")
 
     return {
