@@ -263,6 +263,14 @@ In moderately conflicted cases, the classifier and detector agree on the major f
 \noindent\textbf{High-conflict scenario.}
 In the hardest cases, multiple findings are present and the evidence channels diverge substantially, for example when the classifier captures diffuse disease patterns that the detector cannot localize cleanly, or when one branch overcalls a focal lesion. The reporting layer is most valuable in these high-conflict settings because it surfaces the disagreement explicitly instead of hiding it inside an aggregate metric. The final report can then distinguish findings with dual support from classifier-only or detector-only claims, which is precisely the behavior needed for a first-pass clinical review tool.
 
+\FloatBarrier
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth]{figures/example_report_case.png}
+\caption{Ground-truth-versus-YOLO comparison examples. In each row, the left panel shows merged radiologist ground-truth boxes and the right panel shows YOLO predictions with visible class labels. Top row: a single-label case where both the ground truth and YOLO indicate \textit{Aortic enlargement}. Bottom row: a multi-label case with radiologist labels \textit{Aortic enlargement}, \textit{Cardiomegaly}, \textit{Lung Opacity}, and \textit{Nodule/Mass}; YOLO recovers the first three localizable patterns except the more diffuse \textit{Lung Opacity} finding.}
+\label{fig:examplecase}
+\end{figure*}
+
 \section{Discussion}
 The principal finding of this work is that the value of the pipeline lies in its workflow design, not in any single component alone. A radiologist reviewing a chest X-ray identifies findings, locates supporting evidence, weighs certainty, and composes an impression. The pipeline mirrors that cognitive structure, and its clinical utility comes from making each step explicit and auditable.
 
@@ -281,14 +289,6 @@ These limitations define a clear path forward. The system already provides an ex
 
 \section{Conclusion}
 This work presents a multi-stage chest X-ray decision-support pipeline that closes the gap between model output and clinical usability. The pipeline mirrors the radiologist's workflow: classification, localization, and structured reporting, while keeping each stage modular and auditable. Transfer-learned classifiers, especially Swin, provide the strongest image-level performance; a lightweight CNN keeps the same workflow viable under tighter compute constraints; YOLO contributes spatial evidence that strengthens explainability for focal findings; and the agentic reporting layer converts raw model outputs into a structured summary that a clinician can review and act on. The result is a practical, evidence-grounded clinical assistant that replaces opaque probability outputs with a structured foundation for review.
-
-\FloatBarrier
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=\textwidth]{figures/example_report_case.png}
-\caption{Ground-truth-versus-YOLO comparison examples. In each row, the left panel shows merged radiologist ground-truth boxes and the right panel shows YOLO predictions with visible class labels. Top row: a single-label case where both the ground truth and YOLO indicate \textit{Aortic enlargement}. Bottom row: a multi-label case with radiologist labels \textit{Aortic enlargement}, \textit{Cardiomegaly}, \textit{Lung Opacity}, and \textit{Nodule/Mass}; YOLO recovers the first three localizable patterns except the more diffuse \textit{Lung Opacity} finding.}
-\label{fig:examplecase}
-\end{figure*}
 
 \section*{Acknowledgment}
 The author thanks the VinBigData dataset providers for releasing the chest X-ray data through an open Kaggle challenge. The author also thanks Dr.\ Newell Washburn for course guidance and Tushar Nayak for reviews and feedback on the project. Compute resources were provided by the Pittsburgh Supercomputing Center.
