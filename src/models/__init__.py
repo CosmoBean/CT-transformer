@@ -9,6 +9,7 @@ from .sota_models import (
     SwinTransformerClassifier,
     SimpleCNNClassifier,
 )
+from .factory import SUPPORTED_MODELS, create_model
 
 __all__ = [
     'VisionTransformerClassifier',
@@ -16,4 +17,6 @@ __all__ = [
     'ResNetClassifier',
     'SwinTransformerClassifier',
     'SimpleCNNClassifier',
+    'SUPPORTED_MODELS',
+    'create_model',
 ]

@@ -10,10 +10,10 @@ from typing import Any
 import torch
 from PIL import Image
 
-from scripts.train import create_model
 from src.data.dataset import CLASS_NAMES
 from src.data.detection import derive_image_level_labels_from_detections
 from src.data.transforms import build_classification_transform
+from src.models import create_model
 from src.utils import load_config
 
 

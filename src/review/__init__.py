@@ -10,6 +10,7 @@ from .orchestrator import ReviewOrchestrator
 from .renderer import render_review_report
 from .schema import ClaudeReviewResponse, validate_review_response
 from .taxonomy import DERIVED_GLOBAL_BUCKETS, LABEL_CATEGORY_BY_NAME, derive_global_bucket_hints
+from .workflows import build_review_orchestrator, evaluate_review_run, run_review_case
 
 __all__ = [
     "build_case_packet",
@@ -22,6 +23,9 @@ __all__ = [
     "build_case_buckets",
     "evaluate_multilabel_predictions",
     "ReviewOrchestrator",
+    "build_review_orchestrator",
+    "evaluate_review_run",
+    "run_review_case",
     "render_review_report",
     "ClaudeReviewResponse",
     "validate_review_response",
