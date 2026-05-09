@@ -7,6 +7,7 @@ from .gateway import CmuGatewayClient, GatewayError
 from .inference import SwinInferenceEngine, YoloInferenceEngine
 from .metrics import build_case_buckets, evaluate_multilabel_predictions
 from .orchestrator import ReviewOrchestrator
+from .pdf import export_pdf
 from .renderer import render_review_report
 from .schema import ClaudeReviewResponse, validate_review_response
 from .taxonomy import DERIVED_GLOBAL_BUCKETS, LABEL_CATEGORY_BY_NAME, derive_global_bucket_hints
@@ -25,6 +26,7 @@ __all__ = [
     "ReviewOrchestrator",
     "build_review_orchestrator",
     "evaluate_review_run",
+    "export_pdf",
     "run_review_case",
     "render_review_report",
     "ClaudeReviewResponse",

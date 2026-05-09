@@ -9,13 +9,13 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from scripts.export_review_pdfs import export_pdf
 from src.data.dataset import CLASS_NAMES
 from src.data.detection import build_split_image_ids, load_image_level_ground_truth
 from src.evaluation import evaluate_multilabel_predictions, format_case_table, prediction_row_from_labels
 from src.review.inference import SwinInferenceEngine, YoloInferenceEngine
 from src.review.metrics import build_case_buckets
 from src.review.orchestrator import ReviewOrchestrator
+from src.review.pdf import export_pdf
 from src.utils import load_config
 
 
