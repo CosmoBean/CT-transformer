@@ -15,8 +15,10 @@ The goal is simple:
 ## 1. Install
 
 ```bash
-bash scripts/install.sh
+python -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
 If you want credentials to be picked up automatically, copy the template and fill it in:

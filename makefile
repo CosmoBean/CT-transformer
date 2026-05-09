@@ -1,7 +1,9 @@
 .PHONY: install data clean test test-yolo test-review prepare-yolo train-simple-cnn train-efficientnet train-resnet train-vit train-swin train-yolo infer-yolo eval-yolo eval-review agentic-report reproduce-compare presentation-reports
 
 install:
-	bash scripts/install.sh
+	python -m venv .venv
+	.venv/bin/python -m pip install --upgrade pip
+	.venv/bin/python -m pip install -r requirements.txt
 
 data:
 	.venv/bin/python main.py setup-data

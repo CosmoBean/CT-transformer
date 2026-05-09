@@ -9,8 +9,10 @@ Minimal code for three VinBigData workflows:
 ## Setup
 
 ```bash
-bash scripts/install.sh
+python -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
