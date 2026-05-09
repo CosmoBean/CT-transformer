@@ -133,7 +133,7 @@ The YOLO localization experiments include an initial 10-epoch run and longer con
 
 \section{Results}
 \subsection{Image-Level Classification}
-Tables~\ref{tab:classification} and \ref{tab:classification_full} plus Fig.~\ref{fig:clfcomp} summarize the classifier comparison. Transfer learning is clearly dominant on this dataset. Swin achieves the strongest performance at 0.9665 macro AUC-ROC, followed closely by EfficientNet-B3 (0.9564) and ResNet-50 (0.9550). The best ViT-Base run reaches 0.8712 macro AUC-ROC, but it remains behind the CNN and the stronger pretrained backbones, confirming that a vanilla ViT is a weaker fit for this dataset even with longer training.
+Tables~\ref{tab:classification} and \ref{tab:classification_full} summarize the classifier comparison. Transfer learning is clearly dominant on this dataset. Swin achieves the strongest performance at 0.9665 macro AUC-ROC, followed closely by EfficientNet-B3 (0.9564) and ResNet-50 (0.9550). The best ViT-Base run reaches 0.8712 macro AUC-ROC, but it remains behind the CNN and the stronger pretrained backbones, confirming that a vanilla ViT is a weaker fit for this dataset even with longer training.
 
 The most important secondary result is the from-scratch CNN: with only 1.31M parameters, it reaches 0.9314 macro AUC-ROC. The classification stage therefore does not require a large transformer to be effective. In a resource-constrained deployment, the lightweight CNN can serve as the classifier while the localization and reporting stages remain unchanged. This is a direct strength of the modular pipeline design.
 
@@ -204,13 +204,6 @@ No finding & 0.9927 & 0.9572 \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/classifier_comparison.png}
-\caption{Minimal comparison of the retained image-level classifiers. Transfer learning helps substantially, but the lightweight from-scratch CNN remains a strong sanity-check baseline.}
-\label{fig:clfcomp}
-\end{figure}
 
 \subsection{Localization Performance}
 The best YOLOv8m run reached 0.3666 mAP@0.5; a larger YOLOv8l variant did not materially improve this. This result matches the task: VinBigData bounding boxes include diffuse abnormalities like lung opacity and ILD, which do not present the tight spatial boundaries object detectors handle best. Detection mAP alone therefore does not capture the detector's full value in the pipeline. YOLO provides a second, spatially grounded evidence channel. When the classifier flags cardiomegaly and the detector draws a bounding box over the cardiac silhouette, the reporting layer states that the finding has both image-level and localized support. When only one source provides evidence, the report marks the finding as uncertain. This agreement-disagreement signal is the core way localization strengthens clinical explainability.
