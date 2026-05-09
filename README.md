@@ -1,167 +1,76 @@
 # CT-Transformer
 
-Clean chest X-ray code for the **VinBigData** dataset with three retained paths:
+Minimal code for three VinBigData workflows:
 
-1. **Classification**
-   - from-scratch baseline: `simple_cnn`
-   - transfer-learning baselines: `efficientnet_b3`, `resnet50`, `vit_base`, `swin_base_patch4_window7_224`
-2. **Localization**
-   - `YOLOv8m` trained on the raw VinBigData box annotations
-3. **Agentic reporting**
-   - `Swin + YOLO + agentic AI reviewer` to generate a structured decision-support report
-
-This repo is intentionally scoped to the final workflow. Older anomaly-detection and dead experimental branches were removed.
-
-## Dataset
-
-The project uses the current **15-label VinBigData subset** already prepared in:
-
-```text
-data/
-├── train/
-├── test/
-└── train.csv
-```
-
-For YOLO localization, the raw box annotations are also required:
-
-```text
-data/_downloads/train_raw.csv
-data/_downloads/vinbig_png/train_meta.csv
-```
-
-`scripts/setup_data.py` is the main dataset setup entrypoint. If you later upload this prepared dataset to Hugging Face, you can keep the same folder structure and just swap the download/source step.
-
-## Final repo structure
-
-```text
-configs/
-  default_config.yaml          # classification defaults
-  yolo_v8_detection.yaml       # YOLO defaults
-  claude_review.yaml           # agentic review defaults
-
-src/
-  data/                        # VinBigData classification + detection dataset code
-  models/                      # simple CNN + transfer-learning classifiers
-  training/                    # trainer + metrics
-  review/                      # agentic reporting workflow
-
-scripts/
-  setup_data.py                # dataset preparation
-  train.py                     # classification training
-  prepare_yolo_dataset.py      # YOLO dataset materialization
-  train_yolo.py                # YOLO training
-  run_agentic_report.py        # end-to-end report generation
-```
+1. Classification
+2. YOLO localization
+3. Agentic report generation
 
 ## Setup
 
-Install dependencies:
-
 ```bash
-make install
+bash scripts/install.sh
+source .venv/bin/activate
+cp .env.example .env
 ```
 
-Prepare the dataset:
+Fill `.env` only if you need private Hugging Face access or agentic review generation.
+
+## Reproduce without retraining
+
+Download the prepared dataset and saved artifacts:
 
 ```bash
-make data
+python scripts/reproduce.py download \
+  --dataset-repo <hf_dataset_repo> \
+  --artifacts-repo <hf_artifacts_repo>
 ```
 
-## Classification training
-
-The default classification config is fixed in [configs/default_config.yaml](/project/community/sbandred/CT-transformer/configs/default_config.yaml).
-
-Train the from-scratch baseline:
+Rerun the saved comparisons:
 
 ```bash
-python scripts/train.py --model simple_cnn --epochs 100 \
-  --save-dir experiments/simple_cnn_100/checkpoints \
-  --log-dir experiments/simple_cnn_100/logs
+python scripts/reproduce.py compare --max-cases 300
 ```
 
-Train a transfer-learning model:
+Generate one report:
 
 ```bash
-python scripts/train.py --model swin_base_patch4_window7_224 --epochs 10 \
-  --save-dir experiments/agent_swin/checkpoints \
-  --log-dir experiments/agent_swin/logs
+python scripts/reproduce.py report --image data/test/<image>.png
 ```
 
-Shortcuts:
+More detail is in [REPRODUCE.md](/project/community/sbandred/CT-transformer/REPRODUCE.md).
+
+## Train from scratch
+
+Classification:
 
 ```bash
-make train-simple-cnn
-make train-efficientnet
-make train-resnet
-make train-vit
-make train-swin
+python scripts/train.py --model swin_base_patch4_window7_224 --epochs 10
 ```
 
-## YOLO localization
-
-Prepare the YOLO dataset:
+YOLO:
 
 ```bash
-make prepare-yolo
+python scripts/train_yolo.py --weights yolov8m.pt
 ```
 
-Train YOLOv8m:
+## Main commands
 
 ```bash
-make train-yolo
+python scripts/train.py --help
+python scripts/train_yolo.py --help
+python scripts/evaluate_yolo.py --help
+python scripts/evaluate_claude_review.py --help
+python scripts/run_agentic_report.py --help
+python scripts/reproduce.py --help
 ```
 
-Optional single-image inference:
-
-```bash
-make infer-yolo
-```
-
-Optional YOLO evaluation:
-
-```bash
-make eval-yolo
-```
-
-## Agentic report generation
-
-The final report path is:
+## Project layout
 
 ```text
-CXR image -> Swin classification -> YOLO localization -> agentic AI review -> PDF/Markdown/JSON report bundle
-```
-
-Run the full report workflow on one image:
-
-```bash
-export CMU_LLM_GATEWAY_API_KEY=...
-python scripts/run_agentic_report.py --image path/to/cxr.png
-```
-
-Or use:
-
-```bash
-make agentic-report
-```
-
-## Retained best artifacts
-
-Important current experiment directories:
-
-- `experiments/agent_swin/`
-- `experiments/simple_cnn_100/`
-- `experiments/yolo_v8/`
-- `experiments/claude_review/`
-
-Presentation-ready report PDFs are kept separately in:
-
-- `reports/presentation_comparison_examples/`
-
-## Sanity checks
-
-```bash
-make test
-make test-yolo
-make test-review
+configs/   runtime configuration
+scripts/   thin CLI entrypoints
+src/       library code
+data/      prepared dataset
+experiments/ checkpoints, reports, cached outputs
 ```
