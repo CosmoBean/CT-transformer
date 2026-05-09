@@ -14,14 +14,19 @@ import ast
 import csv
 import json
 import sys
+import tempfile
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Rectangle
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import Image, KeepTogether, ListFlowable, ListItem, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -222,7 +227,8 @@ def _build_ground_truth_boxes(
 def _draw_image(ax, image, title: str) -> None:
     ax.imshow(image, cmap="gray")
     ax.axis("off")
-    ax.set_title(title, fontsize=HEADING_SIZE, loc="left", pad=6, color=TEXT_COLOR)
+    if title:
+        ax.set_title(title, fontsize=HEADING_SIZE, loc="left", pad=6, color=TEXT_COLOR)
 
 
 def _draw_annotated(ax, image, detections: list[dict], title: str) -> None:
@@ -350,189 +356,326 @@ def _confidence_calculation_lines(record: CaseRecord, limit: int = 4) -> list[st
     return lines
 
 
-def _write_markdown(record: CaseRecord, output_path: Path) -> None:
-    true_labels = record.true_labels
-    swin_hits = _ordered_hits(true_labels, record.swin_predicted_labels)
-    swin_missing = _ordered_missing(true_labels, record.swin_predicted_labels)
-    swin_extra = _ordered_extra(true_labels, record.swin_predicted_labels)
-    yolo_hits = _ordered_hits(true_labels, record.yolo_predicted_labels)
-    yolo_missing = _ordered_missing(true_labels, record.yolo_predicted_labels)
-    yolo_extra = _ordered_extra(true_labels, record.yolo_predicted_labels)
-    review = record.payload["review"]
-    lines = [
-        f"# {record.title}",
-        "",
-        f"**Case ID:** `{record.image_id}`",
-        f"**Review Recommendation:** `{record.review_recommendation}`",
-        f"**Confidence:** `{record.confidence_band}`",
-        "",
-        "## Ground Truth",
-        ", ".join(true_labels) or "None",
-        "",
-        "## Swin Classification",
-        f"Predicted: {', '.join(record.swin_predicted_labels) or 'None'}",
-        f"Correctly captured: {', '.join(swin_hits) or 'None'}",
-        f"Missed: {', '.join(swin_missing) or 'None'}",
-        f"Overcalled: {', '.join(swin_extra) or 'None'}",
-        "",
-        "## YOLO Detection-Derived Labels",
-        f"Predicted: {', '.join(record.yolo_predicted_labels) or 'None'}",
-        f"Correctly captured: {', '.join(yolo_hits) or 'None'}",
-        f"Missed: {', '.join(yolo_missing) or 'None'}",
-        f"Overcalled: {', '.join(yolo_extra) or 'None'}",
-        "",
-        "## Agentic Summary",
-        f"Supported findings: {', '.join(record.supported_findings) or 'None'}",
-        f"Uncertain findings: {', '.join(record.uncertain_findings) or 'None'}",
-        f"Final report labels: {', '.join(record.claude_predicted_labels) or 'None'}",
-        "",
-        "## Thresholds Used",
-        f"- Swin positive-label threshold: {SWIN_THRESHOLD:.2f}",
-        f"- YOLO detection confidence threshold: {YOLO_CONF_THRESHOLD:.2f}",
-        "- Agentic AI confidence band (`high` / `moderate` / `low`) is qualitative and comes from the reviewer, not a fixed numeric threshold.",
-        "",
-        "## Confidence Calculation",
-        *_confidence_calculation_lines(record),
-        "",
-        "## Findings",
-        review["findings_section"],
-        "",
-        "## Impression",
-        review["impression_section"],
-        "",
-        "## Top Swin Probabilities",
-        *_format_probabilities(record.payload["case_packet"]),
-        "",
-        "## Top YOLO Detections",
-        *_format_detections(record.payload["case_packet"]),
-        "",
-    ]
-    output_path.write_text("\n".join(lines))
-
-
 def _save_overlay(record: CaseRecord, output_path: Path) -> None:
     payload = record.payload
     image = mpimg.imread(Path(payload["image_path"]))
     detections = sorted(payload["case_packet"]["yolo"]["detections"], key=lambda item: float(item["confidence"]), reverse=True)
     fig, ax = plt.subplots(figsize=(8, 8))
     fig.patch.set_facecolor("white")
-    _draw_annotated(ax, image, detections, "YOLO support overlay")
+    ax.set_position([0.0, 0.0, 1.0, 1.0])
+    _draw_annotated(ax, image, detections, "")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=180, facecolor="white")
     plt.close(fig)
 
 
-def _write_pdf(record: CaseRecord, output_path: Path) -> None:
-    payload = record.payload
-    review = payload["review"]
-    image = mpimg.imread(Path(payload["image_path"]))
-    detections = sorted(payload["case_packet"]["yolo"]["detections"], key=lambda item: float(item["confidence"]), reverse=True)
+def _presentation_styles():
+    styles = getSampleStyleSheet()
+    styles.add(
+        ParagraphStyle(
+            name="ReportTitle",
+            parent=styles["Title"],
+            fontName="Helvetica-Bold",
+            fontSize=20,
+            leading=24,
+            textColor=colors.HexColor(HEADER_COLOR),
+            spaceAfter=6,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="ReportSubtitle",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=10.5,
+            leading=13,
+            textColor=colors.HexColor(TEXT_COLOR),
+            spaceAfter=8,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="SectionHeading",
+            parent=styles["Heading2"],
+            fontName="Helvetica-Bold",
+            fontSize=13,
+            leading=16,
+            textColor=colors.HexColor(HEADER_COLOR),
+            spaceBefore=4,
+            spaceAfter=6,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="SubHeading",
+            parent=styles["Heading3"],
+            fontName="Helvetica-Bold",
+            fontSize=10.5,
+            leading=13,
+            textColor=colors.HexColor(HEADER_COLOR),
+            spaceBefore=2,
+            spaceAfter=4,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="Body",
+            parent=styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=9.3,
+            leading=12.5,
+            textColor=colors.HexColor(TEXT_COLOR),
+            spaceAfter=6,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="Small",
+            parent=styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=8.2,
+            leading=10.5,
+            textColor=colors.HexColor(MUTED_COLOR),
+            spaceAfter=4,
+        )
+    )
+    return styles
 
+
+def _scaled_reportlab_image(path: Path, max_width: float, max_height: float) -> Image:
+    image = Image(str(path))
+    width = float(image.imageWidth)
+    height = float(image.imageHeight)
+    scale = min(max_width / width, max_height / height)
+    image.drawWidth = width * scale
+    image.drawHeight = height * scale
+    return image
+
+
+def _framed_image_cell(path: Path, title: str, styles) -> list:
+    return [
+        Paragraph(title, styles["SubHeading"]),
+        _scaled_reportlab_image(path, 2.05 * inch, 2.05 * inch),
+        Spacer(1, 0.02 * inch),
+    ]
+
+
+def _bullet_list(items: list[str], style: ParagraphStyle) -> ListFlowable:
+    return ListFlowable(
+        [ListItem(Paragraph(item, style)) for item in items],
+        bulletType="bullet",
+        leftIndent=14,
+    )
+
+
+def _compact_sentence(items: list[str], none_text: str = "none") -> str:
+    return ", ".join(items) if items else none_text
+
+
+def _concise_agent_summary(record: CaseRecord) -> list[str]:
+    review = record.payload["review"]
+    true_labels = record.true_labels
+    supported = [label for label in record.supported_findings if label != "No finding"]
+    uncertain = [label for label in record.uncertain_findings if label != "No finding"]
+    final_labels = [label for label in record.claude_predicted_labels if label != "No finding"]
+    summary = [
+        f"The agentic report favors {_compact_sentence(final_labels or record.claude_predicted_labels)} with a {record.confidence_band} confidence band and a {record.review_recommendation} review status.",
+        f"Primary AI-supported findings are {_compact_sentence(supported)}, while the remaining uncertain findings are {_compact_sentence(uncertain)}.",
+        f"Relative to radiologist labels, Swin captured {_compact_sentence(_ordered_hits(true_labels, record.swin_predicted_labels))} and YOLO localized {_compact_sentence(_ordered_hits(true_labels, record.yolo_predicted_labels))}.",
+    ]
+    buckets = review.get("supported_global_buckets", [])
+    if buckets:
+        summary.append(f"Overall pattern emphasis is {_compact_sentence(buckets)}.")
+    return summary[:4]
+
+
+def _sentences_to_bullets(text: str, limit: int = 4) -> list[str]:
+    parts = [part.strip() for part in text.replace("\n", " ").split(".") if part.strip()]
+    bullets = [part + "." for part in parts[:limit]]
+    return bullets or [text.strip()]
+
+
+def _section_block(title: str, content, styles) -> KeepTogether:
+    return KeepTogether([Paragraph(title, styles["SectionHeading"]), content])
+
+
+def _build_image_table(record: CaseRecord, styles, overlay_path: Path) -> Table:
+    image = mpimg.imread(Path(record.payload["image_path"]))
+    gt_path = overlay_path.with_name(f"{record.image_id}_gt.png")
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    fig.patch.set_facecolor("white")
+    ax.set_position([0.0, 0.0, 1.0, 1.0])
+    _draw_ground_truth(ax, image, record.ground_truth_boxes, "")
+    fig.savefig(gt_path, dpi=180, facecolor="white")
+    plt.close(fig)
+
+    table = Table(
+        [
+            [
+                _framed_image_cell(Path(record.payload["image_path"]), "Original CXR", styles),
+                _framed_image_cell(gt_path, "Ground-Truth Boxes", styles),
+                _framed_image_cell(overlay_path, "YOLO Support Overlay", styles),
+            ],
+        ],
+        colWidths=[2.2 * inch, 2.2 * inch, 2.2 * inch],
+        rowHeights=[2.45 * inch],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#D9E2EC")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D9E2EC")),
+            ]
+        )
+    )
+    return table
+
+
+def _comparison_table(record: CaseRecord, styles) -> Table:
     true_labels = record.true_labels
     swin_hits = _ordered_hits(true_labels, record.swin_predicted_labels)
     swin_missing = _ordered_missing(true_labels, record.swin_predicted_labels)
-    swin_extra = _ordered_extra(true_labels, record.swin_predicted_labels)
     yolo_hits = _ordered_hits(true_labels, record.yolo_predicted_labels)
     yolo_missing = _ordered_missing(true_labels, record.yolo_predicted_labels)
-    yolo_extra = _ordered_extra(true_labels, record.yolo_predicted_labels)
+    rows = [
+        [
+            Paragraph("<b>Reference</b><br/>" + _compact_sentence(true_labels), styles["Body"]),
+            Paragraph(
+                "<b>Swin</b><br/>"
+                f"Predicted: {_compact_sentence(record.swin_predicted_labels)}<br/>"
+                f"Correct: {_compact_sentence(swin_hits)}<br/>"
+                f"Missed: {_compact_sentence(swin_missing)}",
+                styles["Body"],
+            ),
+            Paragraph(
+                "<b>YOLO</b><br/>"
+                f"Predicted: {_compact_sentence(record.yolo_predicted_labels)}<br/>"
+                f"Correct: {_compact_sentence(yolo_hits)}<br/>"
+                f"Missed: {_compact_sentence(yolo_missing)}",
+                styles["Body"],
+            ),
+        ]
+    ]
+    table = Table(rows, colWidths=[2.2 * inch, 2.2 * inch, 2.2 * inch])
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#F0F4F8")),
+                ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#F3FAF7")),
+                ("BACKGROUND", (2, 0), (2, 0), colors.HexColor("#F8FAFC")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#D9E2EC")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D9E2EC")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    return table
 
+
+def _evidence_table(record: CaseRecord, styles) -> Table:
+    payload = record.payload
+    true_labels = record.true_labels
+    swin_missing = _ordered_missing(true_labels, record.swin_predicted_labels)
+    yolo_missing = _ordered_missing(true_labels, record.yolo_predicted_labels)
+    left = [
+        Paragraph("Top Swin Probabilities", styles["SubHeading"]),
+        _bullet_list(_format_probabilities(payload["case_packet"], limit=6), styles["Body"]),
+    ]
+    middle = [
+        Paragraph("Top YOLO Detections", styles["SubHeading"]),
+        _bullet_list(_format_detections(payload["case_packet"], limit=5), styles["Body"]),
+    ]
+    right = [
+        Paragraph("Takeaways", styles["SubHeading"]),
+        _bullet_list(
+            [
+                f"Swin correct labels: {len(_ordered_hits(true_labels, record.swin_predicted_labels))} / {len(true_labels)}",
+                f"YOLO correct labels: {len(_ordered_hits(true_labels, record.yolo_predicted_labels))} / {len(true_labels)}",
+                f"Swin key miss: {_compact_sentence(swin_missing[:3])}",
+                f"YOLO key miss: {_compact_sentence(yolo_missing[:3])}",
+            ],
+            styles["Body"],
+        ),
+    ]
+    table = Table([[left, middle, right]], colWidths=[2.2 * inch, 2.2 * inch, 2.2 * inch])
+    table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 8)]))
+    return table
+
+
+def _draw_footer(canvas, doc) -> None:
+    canvas.saveState()
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(colors.HexColor(MUTED_COLOR))
+    footer = "AI-generated presentation summary for research review only; human interpretation remains required."
+    canvas.drawString(doc.leftMargin, 0.45 * inch, footer)
+    canvas.restoreState()
+
+
+def _write_pdf(record: CaseRecord, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with PdfPages(output_path) as pdf:
-        fig = plt.figure(figsize=PAGE_SIZE)
-        fig.patch.set_facecolor("white")
-        fig.text(0.07, 0.965, "Presentation Comparison Report", fontsize=TITLE_SIZE, fontweight="bold", color=HEADER_COLOR, ha="left", va="top")
-        fig.text(0.07, 0.928, f"{record.title}    Case: {record.image_id}", fontsize=SUBTITLE_SIZE, color=TEXT_COLOR, ha="left", va="top")
-        fig.text(0.07, 0.905, f"Review status: {record.review_recommendation}    Confidence: {record.confidence_band}", fontsize=10, color=MUTED_COLOR, ha="left", va="top")
+    styles = _presentation_styles()
+    review = record.payload["review"]
 
-        ax1 = fig.add_axes([0.05, 0.60, 0.27, 0.20])
-        ax2 = fig.add_axes([0.365, 0.60, 0.27, 0.20])
-        ax3 = fig.add_axes([0.68, 0.60, 0.27, 0.20])
-        _draw_image(ax1, image, "Original CXR")
-        _draw_ground_truth(ax2, image, record.ground_truth_boxes, "Ground-truth boxes")
-        _draw_annotated(ax3, image, detections, "YOLO support overlay")
+    with tempfile.TemporaryDirectory(prefix=f"{record.image_id}_presentation_") as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        overlay_path = tmp_path / f"{record.image_id}_annotated.png"
+        _save_overlay(record, overlay_path)
 
-        _draw_block(fig, "Ground Truth", _list_text("", true_labels)[1:], 0.07, 0.50, width=38)
-        _draw_block(fig, "Swin Classification", [
-            f"Predicted: {', '.join(record.swin_predicted_labels) or 'None'}",
-            f"Correct: {', '.join(swin_hits) or 'None'}",
-            f"Missed: {', '.join(swin_missing) or 'None'}",
-            f"Overcalled: {', '.join(swin_extra) or 'None'}",
-        ], 0.39, 0.50, width=38)
-        _draw_block(fig, "YOLO Labels", [
-            f"Predicted: {', '.join(record.yolo_predicted_labels) or 'None'}",
-            f"Correct: {', '.join(yolo_hits) or 'None'}",
-            f"Missed: {', '.join(yolo_missing) or 'None'}",
-            f"Overcalled: {', '.join(yolo_extra) or 'None'}",
-        ], 0.70, 0.50, width=30)
+        story = [
+            Paragraph("Example Comparison Report", styles["ReportTitle"]),
+            Paragraph(
+                f"{record.title}<br/>Case: {record.image_id}<br/>Review status: {record.review_recommendation} &nbsp;&nbsp; Confidence: {record.confidence_band}",
+                styles["ReportSubtitle"],
+            ),
+            _section_block("Image Comparison", _build_image_table(record, styles, overlay_path), styles),
+            Spacer(1, 0.08 * inch),
+            _section_block("Model Comparison", _comparison_table(record, styles), styles),
+            Spacer(1, 0.05 * inch),
+            _section_block("Findings", _bullet_list(_sentences_to_bullets(review["findings_section"], limit=4), styles["Body"]), styles),
+            Spacer(1, 0.02 * inch),
+            _section_block("Impression", _bullet_list(_sentences_to_bullets(review["impression_section"], limit=4), styles["Body"]), styles),
+            PageBreak(),
+            _section_block("Agentic Workflow Summary", Paragraph(" ".join(_concise_agent_summary(record)), styles["Body"]), styles),
+            Spacer(1, 0.04 * inch),
+            _section_block("Supporting Evidence", _evidence_table(record, styles), styles),
+            Spacer(1, 0.06 * inch),
+            _section_block(
+                "Confidence Rules Used",
+                _bullet_list(
+                    [
+                        f"Swin positive label cutoff: {SWIN_THRESHOLD:.2f}",
+                        f"YOLO detection confidence cutoff: {YOLO_CONF_THRESHOLD:.2f}",
+                        "Agentic AI confidence band is qualitative and selected by the reviewer.",
+                    ],
+                    styles["Body"],
+                ),
+                styles,
+            ),
+            Spacer(1, 0.04 * inch),
+            Paragraph(review["safety_note"], styles["Small"]),
+        ]
 
-        _draw_block(fig, "Agentic Workflow Summary", [
-            f"Supported findings: {', '.join(record.supported_findings) or 'None'}",
-            f"Uncertain findings: {', '.join(record.uncertain_findings) or 'None'}",
-            f"Final report labels: {', '.join(record.claude_predicted_labels) or 'None'}",
-            f"Pattern buckets: {', '.join(review.get('supported_global_buckets', [])) or 'None'}",
-        ], 0.07, 0.21, width=110)
-        pdf.savefig(fig)
-        plt.close(fig)
-
-        fig = plt.figure(figsize=PAGE_SIZE)
-        fig.patch.set_facecolor("white")
-        fig.text(0.07, 0.965, "Evidence and Report Summary", fontsize=TITLE_SIZE, fontweight="bold", color=HEADER_COLOR, ha="left", va="top")
-        _draw_block(fig, "Findings", [review["findings_section"]], 0.07, 0.90, width=110)
-        _draw_block(fig, "Impression", [review["impression_section"]], 0.07, 0.63, width=110)
-        _draw_block(fig, "Top Swin Probabilities", _format_probabilities(payload["case_packet"]), 0.07, 0.36, width=42)
-        _draw_block(fig, "Ground-Truth Boxes", _format_ground_truth_detections(record.ground_truth_boxes), 0.42, 0.36, width=34)
-        _draw_block(fig, "Top YOLO Detections", _format_detections(payload["case_packet"]), 0.66, 0.36, width=28)
-        _draw_block(fig, "Thresholds Used", [
-            f"Swin positive label cutoff: {SWIN_THRESHOLD:.2f}",
-            f"YOLO detection confidence cutoff: {YOLO_CONF_THRESHOLD:.2f}",
-            "Agentic AI confidence band is qualitative, not a fixed numeric threshold.",
-        ], 0.42, 0.19, width=60)
-        _draw_block(fig, "Presentation Takeaway", [
-            f"Swin correct labels: {len(swin_hits)} / {len(true_labels)}",
-            f"YOLO correct labels: {len(yolo_hits)} / {len(true_labels)}",
-            f"Key miss for Swin: {', '.join(swin_missing[:3]) or 'None'}",
-            f"Key miss for YOLO: {', '.join(yolo_missing[:3]) or 'None'}",
-        ], 0.07, 0.16, width=38, title_color=HEADER_COLOR)
-        fig.text(0.07, 0.08, review["safety_note"], fontsize=SMALL_SIZE, color=MUTED_COLOR, ha="left", va="top")
-        pdf.savefig(fig)
-        plt.close(fig)
-
-        fig = plt.figure(figsize=PAGE_SIZE)
-        fig.patch.set_facecolor("white")
-        fig.text(0.07, 0.965, "Confidence Calculation", fontsize=TITLE_SIZE, fontweight="bold", color=HEADER_COLOR, ha="left", va="top")
-        _draw_block(
-            fig,
-            "How this case's confidence was calculated",
-            _confidence_calculation_lines(record, limit=6),
-            0.07,
-            0.90,
-            width=110,
-            title_color=HEADER_COLOR,
+        doc = SimpleDocTemplate(
+            str(output_path),
+            pagesize=letter,
+            leftMargin=0.65 * inch,
+            rightMargin=0.65 * inch,
+            topMargin=0.6 * inch,
+            bottomMargin=0.7 * inch,
+            title="Example Comparison Report",
         )
-        fig.text(
-            0.07,
-            0.18,
-            "Interpretation note: the report-level agentic AI confidence band is constrained to high / moderate / low in the schema, but the model chooses that band. The per-finding confidence lines above are deterministic and computed from the Swin probability, YOLO support, and the label taxonomy.",
-            fontsize=BODY_SIZE,
-            color=TEXT_COLOR,
-            ha="left",
-            va="top",
-            wrap=True,
-        )
-        fig.text(0.07, 0.08, review["safety_note"], fontsize=SMALL_SIZE, color=MUTED_COLOR, ha="left", va="top")
-        pdf.savefig(fig)
-        plt.close(fig)
-
-
-def _write_readme(records: list[CaseRecord], output_dir: Path) -> None:
-    lines = ["# Presentation Comparison Examples", "", "These five cases compare radiologist ground truth against Swin classification, YOLO detection-derived labels, and the final agentic summary.", ""]
-    for record in records:
-        lines.append(f"- `{record.image_id}` — {record.title}")
-        lines.append(f"  - [Markdown]({record.image_id}.md)")
-        lines.append(f"  - [PDF]({record.image_id}.pdf)")
-        lines.append(f"  - [Annotated overlay]({record.image_id}_annotated.png)")
-    lines.append("")
-    (output_dir / "README.md").write_text("\n".join(lines))
+        doc.build(story, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
 
 
 def main() -> None:
@@ -560,7 +703,7 @@ def main() -> None:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("reports/presentation_comparison_examples"),
+        default=Path("reports/comparision_reports"),
     )
     args = parser.parse_args()
 
@@ -574,11 +717,7 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     for record in records:
-        _write_markdown(record, args.output_dir / f"{record.image_id}.md")
         _write_pdf(record, args.output_dir / f"{record.image_id}.pdf")
-        _save_overlay(record, args.output_dir / f"{record.image_id}_annotated.png")
-
-    _write_readme(records, args.output_dir)
     print(f"Generated {len(records)} comparison report examples in {args.output_dir}")
 
 
