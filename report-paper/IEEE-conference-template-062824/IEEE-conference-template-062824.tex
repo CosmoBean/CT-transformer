@@ -67,7 +67,7 @@ The present work targets a different design point. Instead of training a single 
 \section{Dataset and Task Formulation}
 The pipeline operates on the publicly available Kaggle release of the VinBigData chest X-ray dataset \cite{vinbigdata}, using the 15-label setup exposed by that competition. This public release is a truncated view of the broader original labeling space, yet it remains a strong fit for the pipeline because it contains localizable findings, diffuse findings, and the global \textit{No finding} category in one benchmark.
 
-The retained labels span a clinically meaningful range: \textit{Aortic enlargement}, \textit{Atelectasis}, \textit{Calcification}, \textit{Cardiomegaly}, \textit{Consolidation}, \textit{ILD}, \textit{Infiltration}, \textit{Lung Opacity}, \textit{Nodule/Mass}, \textit{Other lesion}, \textit{Pleural effusion}, \textit{Pleural thickening}, \textit{Pneumothorax}, \textit{Pulmonary fibrosis}, and \textit{No finding}. Because a single radiograph may present multiple concurrent abnormalities, for example cardiomegaly alongside pleural effusion, the image-level task is formulated as multi-label classification rather than single-label assignment.
+The retained labels span a clinically meaningful range: \textit{Aortic enlargement}, \textit{Atelectasis}, \textit{Calcification}, \textit{Cardiomegaly}, \textit{Consolidation}, \textit{ILD} (Interstitial Lung Disease), \textit{Infiltration}, \textit{Lung Opacity}, \textit{Nodule/Mass}, \textit{Other lesion}, \textit{Pleural effusion}, \textit{Pleural thickening}, \textit{Pneumothorax}, \textit{Pulmonary fibrosis}, and \textit{No finding}. Because a single radiograph may present multiple concurrent abnormalities, for example cardiomegaly alongside pleural effusion, the image-level task is formulated as multi-label classification rather than single-label assignment.
 
 The localization task uses the raw VinBigData bounding-box annotations to train a YOLOv8m detector. These annotations are central to the pipeline: the public release provides boxes for abnormal findings, which allows image-level labels and spatial labels to remain aligned throughout the workflow. The classification and localization tasks are evaluated separately because they answer different clinical questions. Classification identifies \textit{what} abnormalities are present anywhere in the image; localization identifies \textit{where} the supporting evidence lies. The downstream reporting stage then uses agreement or disagreement between the two streams as an explicit confidence signal.
 
@@ -99,8 +99,8 @@ Five architectures were compared to understand the practical trade-off between t
 \begin{itemize}
     \item \textbf{efficientnet\_b3}: an ImageNet-pretrained EfficientNet-B3 \cite{efficientnet} with a task-specific classification head,
     \item \textbf{resnet50}: an ImageNet-pretrained ResNet-50 \cite{resnet} with a task-specific head,
-    \item \textbf{vit\_base}: a Vision Transformer \cite{vit} baseline,
-    \item \textbf{swin\_base}: a hierarchical Swin Transformer \cite{swin}, whose shifted-window attention provides multi-scale feature extraction well suited to the varying spatial scales of chest X-ray abnormalities, and
+    \item \textbf{vit\_base}: an ImageNet-pretrained Vision Transformer \cite{vit} baseline, extended to 100 epochs given its slower convergence on this task,
+    \item \textbf{swin\_base}: an ImageNet-pretrained hierarchical Swin Transformer \cite{swin}, whose shifted-window attention provides multi-scale feature extraction well suited to the varying spatial scales of chest X-ray abnormalities, and
     \item \textbf{simple\_cnn}: a 1.31M-parameter CNN trained from scratch, serving as a resource-constrained baseline that tests whether acceptable performance is achievable without pretrained weights or large architectures.
 \end{itemize}
 
@@ -123,7 +123,7 @@ The reporting stage addresses the third clinical question: \textit{how should th
 \end{aligned}
 \end{equation}
 
-The layer consumes five inputs: (1) the full classifier probability vector, (2) thresholded predicted labels, (3) YOLO detections and their confidence scores, (4) bounding-box coordinates, and (5) explicit classifier-detector agreement or disagreement flags. From these, it generates a report containing supported findings (where both classifier and detector agree), uncertain findings (where only one source provides evidence), a short clinical impression, review guidance highlighting areas of model disagreement, and a safety statement. Architecturally, this layer follows explicit agentic design patterns: structured intermediate state instead of free-form prompt stuffing, provider-agnostic gateway access, schema-validated JSON outputs, deterministic decoding for reproducibility, and bounded retries when a response fails validation. These patterns make the reporting layer inspectable and stable on top of medical-model outputs. In these experiments, the LLM endpoint is Claude Sonnet, accessed through the Carnegie Mellon University AI gateway; temperature is fixed at zero for fully deterministic outputs.
+The layer consumes five inputs: (1) the full classifier probability vector, (2) predicted labels thresholded at 0.5, (3) YOLO detections above a confidence threshold of 0.25 and their associated scores, (4) bounding-box coordinates, and (5) explicit classifier-detector agreement or disagreement flags. From these, it generates a report containing supported findings (where both classifier and detector agree), uncertain findings (where only one source provides evidence), a short clinical impression, review guidance highlighting areas of model disagreement, and a safety statement. Architecturally, this layer follows explicit agentic design patterns: structured intermediate state instead of free-form prompt stuffing, provider-agnostic gateway access, schema-validated JSON outputs, deterministic decoding for reproducibility, and bounded retries when a response fails validation. These patterns make the reporting layer inspectable and stable on top of medical-model outputs. In these experiments, the LLM endpoint is Claude Sonnet, accessed through the Carnegie Mellon University AI gateway; temperature is fixed at zero for fully deterministic outputs.
 
 To bridge the gap between low-level VinBigData labels and the broader categories a clinician uses when composing an impression, the report also maps findings into derived global buckets: \textit{No acute abnormality}, \textit{Cardiomediastinal abnormality}, \textit{Pleural abnormality}, and \textit{Chronic interstitial or fibrotic pattern}. These are interpretive summaries intended to improve readability; they are not treated as additional supervised labels. This local-versus-global distinction is central to the report design: some findings are naturally supported by boxes, while broader summary statements are derived from the total evidence bundle rather than from a single localized detection.
 
@@ -132,7 +132,7 @@ All training scripts use fixed defaults to ensure reproducibility. Most transfer
 
 The end-to-end agentic evaluation is conducted on a 300-case slice drawn from the 3,000-image validation split; this subset was chosen to keep API usage within practical limits while providing a representative sample for pipeline comparison. The same 300 cases are used across all systems compared in Tables~\ref{tab:agentic_focus} and~\ref{tab:agentic}.
 
-The YOLO localization experiments include an initial 10-epoch run and longer continuation runs; the best checkpoint is reported. All experiments were run using Pittsburgh Supercomputing Center resources with NVIDIA V100 GPUs, and the repository is structured so that any classification or localization run can be reproduced from the cleaned layout.
+The YOLO localization model was initialized from COCO-pretrained YOLOv8m weights and trained on $512\times512$ images with a batch size of 16, using early stopping with a patience of 10 over up to 50 epochs; the best validation checkpoint is reported. All experiments were run using Pittsburgh Supercomputing Center resources with NVIDIA V100 GPUs, and the repository is structured so that any classification or localization run can be reproduced from the cleaned layout.
 
 \section{Results}
 \subsection{Image-Level Classification}
@@ -213,12 +213,12 @@ Macro average & 0.9618 & 0.7590 \\
 \end{table}
 
 \subsection{Localization Performance}
-The best YOLOv8m run reached 0.3666 mAP@0.5; a larger YOLOv8l variant did not materially improve this. This result matches the task: VinBigData bounding boxes include diffuse abnormalities like lung opacity and ILD, which do not present the tight spatial boundaries object detectors handle best. Detection mAP alone therefore does not capture the detector's full value in the pipeline. YOLO provides a second, spatially grounded evidence channel. When the classifier flags cardiomegaly and the detector draws a bounding box over the cardiac silhouette, the reporting layer states that the finding has both image-level and localized support. When only one source provides evidence, the report marks the finding as uncertain. This agreement-disagreement signal is the core way localization strengthens clinical explainability.
+The best YOLOv8m run reached 0.3666 mAP@0.5; a larger YOLOv8l variant did not materially improve this. This result matches the task: VinBigData bounding boxes include diffuse abnormalities like lung opacity and ILD, which do not present the tight spatial boundaries object detectors handle best. Detection mAP alone therefore does not capture the detector's full value in the pipeline. YOLO provides a second, spatially grounded evidence channel. When the classifier flags cardiomegaly and the detector draws a bounding box over the cardiac silhouette, the reporting layer states that the finding has both image-level and localized support. When only one source provides evidence, the report marks the finding as uncertain. This agreement-disagreement signal is the core way localization strengthens clinical explainability. The \textit{YOLO labels} row in Table~\ref{tab:agentic} quantifies the label-level signal recoverable from bounding boxes alone: YOLO detections are converted to image-level predictions and compared directly against the classifier on the same 300-case slice. Fig.~\ref{fig:examplecase} shows representative detection outputs alongside radiologist ground truth for a clean single-label case and a harder multi-label case where the diffuse \textit{Lung Opacity} finding is missed by the detector.
 
 \subsection{End-to-End Workflow Evaluation}
 Tables~\ref{tab:agentic_focus} and \ref{tab:agentic} evaluate the complete pipeline on the 300-case review slice. Because the agentic layer produces categorical label decisions rather than soft probability scores, AUC for all three systems in this comparison is computed on thresholded binary predictions, placing every system on equal footing; this is why the AUC values here are substantially lower than those in Table~\ref{tab:classification_full}, where soft scores are used. The integrated workflow achieves 0.750 exact-match accuracy and 0.9560 macro accuracy, exceeding both Swin alone and YOLO labels on these metrics. On macro AUC-ROC it reaches 0.7063, below Swin's 0.7481 and above YOLO labels at 0.6374. The reporting layer therefore strengthens exact-match and macro accuracy while the AUC gap reflects the inherent cost of converting continuous scores to categorical outputs.
 
-The case-level breakdown is illuminating. The agentic layer improved over Swin on 16 cases and over YOLO on 33 cases, while underperforming Swin on 12 cases and YOLO on 9 cases. The gains occurred when one model was uncertain and the other provided supporting evidence, allowing the reporting layer to make a stronger final call. The misses occurred when the layer inherited a confident but incorrect upstream prediction. This asymmetry defines the fusion-based reporting approach: it strengthens weak signals and organizes evidence effectively, while upstream model quality still sets the performance ceiling.
+The case-level breakdown is illuminating. The agentic layer improved over Swin on 16 cases and over YOLO on 33 cases, while underperforming Swin on 12 cases and YOLO on 9 cases. The gains occurred when one model was uncertain and the other provided supporting evidence, allowing the reporting layer to make a stronger final call. The shortfalls occurred when the layer inherited a confident but incorrect upstream prediction. This asymmetry defines the fusion-based reporting approach: it strengthens weak signals and organizes evidence effectively, while upstream model quality still sets the performance ceiling.
 
 The reporting stage delivers its strongest contribution at the workflow level. Instead of a single label vector, the clinician receives a structured summary that states which findings are supported by both models, which are uncertain, and where the two sources disagree. That information is invisible in a raw probability output. Preliminary comparisons against alternative agentic prompting strategies, including MedGemma-style medical LLM prompting, pointed to the same conclusion: the grounded pipeline produced the most auditable outputs because every report section is tied back to explicit classifier scores, detector boxes, and agreement logic. Medically specialized language models can phrase findings naturally, but the structured evidence contract in this pipeline makes the output far easier to audit as a decision-support component.
 
@@ -229,7 +229,7 @@ The reporting stage delivers its strongest contribution at the workflow level. I
 \footnotesize
 \begin{tabular}{lccc}
 \toprule
-System & Exact-Match & Macro Acc & Macro AUC \\
+System & Exact-Match & Macro Acc & Macro AUC-ROC \\
 \midrule
 Swin alone & 0.7400 & 0.9542 & 0.7481 \\
 Full pipeline & 0.7500 & 0.9560 & 0.7063 \\
@@ -244,7 +244,7 @@ Full pipeline & 0.7500 & 0.9560 & 0.7063 \\
 \footnotesize
 \begin{tabular}{lccc}
 \toprule
-System & Exact-Match & Macro Acc & Macro AUC \\
+System & Exact-Match & Macro Acc & Macro AUC-ROC \\
 \midrule
 Swin classifier & 0.7400 & 0.9542 & 0.7481 \\
 YOLO labels & 0.7300 & 0.9464 & 0.6374 \\
@@ -254,7 +254,7 @@ Agentic workflow & 0.7500 & 0.9560 & 0.7063 \\
 \end{table}
 
 \subsection{Qualitative Reporting Scenarios}
-Representative outcomes from the retained report set illustrate where the workflow is most useful in practice.
+Representative outcomes from the 300-case evaluation set illustrate where the workflow is most useful in practice.
 
 \noindent\textbf{Vanilla scenario (minimal conflict).}
 In the simplest workflow setting, the classifier, detector, and ground truth all align on either \textit{No finding} or a small number of focal abnormalities. In these cases the pipeline produces a conservative summary without forcing the clinician to sift through 15 individual probability scores. This is the simplest but most common workflow scenario, and handling it efficiently matters because low-conflict cases dominate clinical volume.
