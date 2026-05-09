@@ -133,7 +133,7 @@ The YOLO localization experiments include an initial 10-epoch run and longer con
 
 \section{Results}
 \subsection{Image-Level Classification}
-Table~\ref{tab:classification} and Fig.~\ref{fig:clfcomp} summarize the classifier comparison. Transfer learning is clearly dominant on this dataset. Swin achieves the strongest performance at 0.9665 macro AUC-ROC, followed closely by EfficientNet-B3 (0.9564) and ResNet-50 (0.9550). The best ViT-Base run reaches 0.8712 macro AUC-ROC, but it remains behind the CNN and the stronger pretrained backbones, confirming that a vanilla ViT is a weaker fit for this dataset even with longer training.
+Tables~\ref{tab:classification} and \ref{tab:classification_full} plus Fig.~\ref{fig:clfcomp} summarize the classifier comparison. Transfer learning is clearly dominant on this dataset. Swin achieves the strongest performance at 0.9665 macro AUC-ROC, followed closely by EfficientNet-B3 (0.9564) and ResNet-50 (0.9550). The best ViT-Base run reaches 0.8712 macro AUC-ROC, but it remains behind the CNN and the stronger pretrained backbones, confirming that a vanilla ViT is a weaker fit for this dataset even with longer training.
 
 The most important secondary result is the from-scratch CNN: with only 1.31M parameters, it reaches 0.9314 macro AUC-ROC. The classification stage therefore does not require a large transformer to be effective. In a resource-constrained deployment, the lightweight CNN can serve as the classifier while the localization and reporting stages remain unchanged. This is a direct strength of the modular pipeline design.
 
@@ -153,6 +153,24 @@ efficientnet\_b3 & 11.49M & 10 & 0.9564 \\
 resnet50 & 24.56M & 10 & 0.9550 \\
 vit\_base & 86.84M & 100 & 0.8712 \\
 swin\_base & 87.28M & 10 & 0.9665 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\caption{Best-Checkpoint Classification Metrics on the 3,000-Image Validation Split}
+\label{tab:classification_full}
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+Model & Exact & Macro Acc & Macro AUC \\
+\midrule
+simple\_cnn & 0.7383 & 0.9444 & 0.9280 \\
+efficientnet\_b3 & 0.7440 & 0.9543 & 0.9504 \\
+resnet50 & 0.7397 & 0.9526 & 0.9453 \\
+vit\_base & 0.6793 & 0.9313 & 0.8712 \\
+swin\_base & 0.7573 & 0.9583 & 0.9618 \\
 \bottomrule
 \end{tabular}
 \end{table}
